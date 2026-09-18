@@ -8,12 +8,12 @@
 - 外部 PR 可以贡献 SDK 公共合同、客户端和文档；业务插件代码不得合入 src、SDK 依赖或 Actions。
 - 不设置自动扫描/加载第三方插件的 plugins 目录。插件安装不能执行 setup.py 或动态 import。
 - 合同以 src/opsmesh_plugin_sdk 为唯一维护源；平台通过不可变发布版本或提交归档安装，不复制源码。
-- 当前只有 5 个实现模块，保持单层包。只有独立生命周期、稳定协议或可替换实现才增加子包。
+- 保持单层包。只有独立生命周期、稳定协议或可替换实现才增加子包。
 - 禁止兼容性别名、重导出 shim、静默回退、为拆分而拆分的转发模块。
 
 ## 依赖和安全
 
-- 仅依赖 HTTPX、Pydantic 和可选 cryptography，优先复用公开接口。
+- 仅依赖 HTTPX、Pydantic、packaging 和可选 cryptography，优先复用公开接口。
 - 不引入 backend、数据库、Worker、Agent SDK、Docker 或渠道厂商的依赖。
 - Ed25519 的 cryptography 必须在 signing extra 内，基础导入不能强制加载它。
 - 调用者负责 HTTP 客户端生命周期、身份验证、超时、网络重试、持久化去重及渠道投递。

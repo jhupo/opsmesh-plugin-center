@@ -26,6 +26,8 @@ This independent Python package does not import the OpsMesh backend. It provides
 - `webhooks.parse_automation_delivery`: authenticated, typed replies scoped to the configured
   workspace and automation; includes progress, pending approvals and monotonic sequence numbers.
 - `packages`: Ed25519 signed plugin manifests (install the `signing` extra).
+- `distribution`: signed release descriptors, platform/SDK version requirements and pinned catalogs.
+- `publish`: publisher CLI and reusable `plugin-release.yml` workflow; see [publishing](docs/development.md).
 
 Build a wheel from this repository with `uv build`.
 The local build is not a PyPI publication. External connector repositories can install the wheel
