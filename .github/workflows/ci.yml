@@ -9,6 +9,7 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     strategy:
       matrix:
         python: ['3.11', '3.12', '3.13', '3.14']
@@ -22,11 +23,28 @@ jobs:
       - run: uv run ruff check .
       - run: uv run mypy
       - run: uv run python -m compileall -q src
+  build:
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: astral-sh/setup-uv@d0d8abe699bfb85fec6de9f7adb5ae17292296ff
+        with:
+          version: '0.12.10'
+          python-version: '3.12'
+      - run: uv sync --frozen --extra signing
       - run: uv build
       - run: uv run twine check --strict dist/*
-      - name: Check installed wheel without backend source
+      - name: Check installed wheel without backend or signing dependencies
         run: |
           uv venv /tmp/sdk-wheel
           uv pip install --python /tmp/sdk-wheel/bin/python dist/*.whl
           cd /tmp
           /tmp/sdk-wheel/bin/python -c "from opsmesh_plugin_sdk import client, contracts, packages, webhooks; import importlib.metadata; assert importlib.metadata.metadata('opsmesh-plugin-sdk')['License-Expression'] == 'Apache-2.0'"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: sdk-distributions-${{ github.run_id }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 7

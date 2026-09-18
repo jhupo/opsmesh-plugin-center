@@ -2,6 +2,7 @@
 
 OpsMesh 插件开发 Python SDK。平台的插件中心负责安装、授权与运行管理；
 本仓库为外部插件提供结构化消息、流式订阅、Webhook 验签和 manifest 签名能力。
+目录、外部插件贡献和平台拉取边界见 [架构与分发合同](docs/architecture.md)；
 开发、安装与 tag 发布步骤见 [开发文档](docs/development.md)。
 
 ```sh

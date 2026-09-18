@@ -1,17 +1,6 @@
 # 开发与发布
 
-状态：独立 SDK 仓库初始化，2026-09-18。
-
-## 边界
-
-本仓库是插件开发 SDK，不是插件中心服务端。服务端负责安装、审核、授权、工作区隔离、
-事件持久化和执行；SDK 提供类型合同、同步/异步 HTTP 客户端、NDJSON 订阅、
-Webhook 验签与可选 Ed25519 manifest 签名。具体渠道与业务插件在其他仓库实现。
-
-代码从 OpsMesh 提交 8d9fc408 的 plugin_sdk 提取，初始公共 API 保持一致。
-当前 OpsMesh 仍使用其 workspace 内的 SDK 包；本次初始化没有修改平台依赖。
-待独立版本正式发布并验证后，平台应改为固定版本依赖，并删除其内置 SDK 源码，
-避免后续两处分别维护。这个切换尚未执行。
+状态：2026-09-18；GitHub Actions 已配置，正式 tag/PyPI 发布尚未执行。
 
 ## 本地开发
 
@@ -26,23 +15,31 @@ uv build
 uv run twine check --strict dist/*
 ```
 
-src 布局避免仓库工作目录掩盖包安装缺失。发布包包含 py.typed 和许可证声明。
-签名依赖为可选 extra，HTTP 通信与 Webhook HMAC 验签不依赖 cryptography。
-不需要数据库、Redis、Docker 或 OpsMesh 后端源码即可安装和导入。
+运行依赖仅 HTTPX/Pydantic，Ed25519 签名使用 signing extra。
+src 布局要求先安装 SDK；不得把父仓库或 backend 加到 PYTHONPATH 来掩盖安装错误。
+构建产物包含 py.typed、Apache LICENSE、NOTICE 与历史 MIT 声明。
 
-## 发布
+## SDK 发布合同
 
-CI 对 Python 3.11–3.14 做静态与打包检查。更新 pyproject.toml 版本及 uv.lock，
-提交后推送对应 v 标签；发布工作流先通过同一套门禁，再校验标签和版本一致，
-生成 wheel、源码包及 SHA256SUMS，上传 GitHub Release。
-
-当前未配置 PyPI 自动发布，也未发布任何正式版本。使用本地构建 wheel：
+1. 版本是 pyproject.toml 的单一事实来源，维护 uv.lock；tag 必须为对应的 vX.Y.Z
+   或 vX.Y.ZrcN，提交必须属于 master。已发布的版本、tag 和资产不覆盖。
+2. PR/master CI 使用 Python 3.11–3.14 做静态检查；成功后单一 build job 构建 wheel/sdist，
+   检查 metadata，并在无 backend/无 signing extra 的新环境导入 wheel。
+3. tag 复用同一门禁与 build job，发布 job 只下载其 artifact，不重新构建。
+4. 资产为 opsmesh_plugin_sdk-VERSION-py3-none-any.whl、同版本 tar.gz、SHA256SUMS。
+   GitHub provenance attestation 绑定来源仓库/工作流/commit 与资产摘要。
+5. rc 标签发布为 prerelease。流水线失败不视为发布成功；已有 release 禁止覆盖。
+   发布 job 部分失败后先核查资产与证明，再人工修复，当前不实现自动补传。
+6. 仓库尚未配置 PyPI Trusted Publisher，不运行 uv publish/twine upload，也不声称包已上架。
+   下游可安装 GitHub Release wheel，或固定完整 commit 的源码归档，不能依赖浮动 master/latest。
+7. 不为 SDK 发布 Docker 镜像；它是库。可部署插件自己的镜像遵守架构文档中的插件发布合同。
 
 ```sh
 pip install ./dist/opsmesh_plugin_sdk-0.1.0-py3-none-any.whl
-# 需要 manifest 签名时
 pip install './dist/opsmesh_plugin_sdk-0.1.0-py3-none-any.whl[signing]'
 ```
 
-PyPI 发布需项目所有者后续配置可信发布身份；不要把长期令牌写进仓库。
-所有迁入代码保留 Apache-2.0、NOTICE 和历史 MIT 声明。
+从 OpsMesh 8d9fc408 提取初始 SDK；后续唯一源码 owner 是本仓库。
+平台的依赖位置由平台 pyproject.toml/uv.lock 决定，不通过手工复制同步。
+跨仓库合同变更先发布/推送 SDK 不可变版本，再更新平台固定依赖并运行现有接入流程。
+插件目录与平台拉取设计见 [架构与分发合同](architecture.md)。
