@@ -1,6 +1,6 @@
 # SDK、插件仓库与平台分发边界
 
-状态：2026-09-18。SDK 0.2.0 提供分发合同；平台下载实现验收状态以 OpsMesh 的
+状态：2026-09-18。SDK 0.3.0 提供分发、插件服务及卡片合同；平台下载实现验收状态以 OpsMesh 的
 docs/plugin-distribution.md 为准。托管 OCI 执行及安装 Web UI 尚未实现。
 
 ## 所有权与目录
@@ -12,7 +12,8 @@ SDK 维护公共合同与客户端，平台维护目录信任、下载、审批�
 
 src/opsmesh_plugin_sdk 保持单层：contracts.py（消息与 manifest）、client.py（HTTPX）、
 webhooks.py（HMAC）、packages.py（manifest 签名）、distribution.py（受签发布与目录）、
-publish.py（发布 CLI）、__init__.py、py.typed。docs 维护架构与发布文档；
+publish.py（发布 CLI）、services.py（平台服务）、cards.py（卡片合同）、__init__.py、py.typed。
+平台服务使用方式见 [服务合同](services.md)。docs 维护架构与发布文档；
 .github/workflows 提供 SDK ci/release 与外部插件 reusable plugin-release。
 
 不增加 plugins 业务目录、运行时或数据库。SDK 不导入平台、不下载或运行代码。

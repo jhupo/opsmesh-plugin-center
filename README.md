@@ -28,6 +28,9 @@ This independent Python package does not import the OpsMesh backend. It provides
 - `packages`: Ed25519 signed plugin manifests (install the `signing` extra).
 - `distribution`: signed release descriptors, platform/SDK version requirements and pinned catalogs.
 - `publish`: publisher CLI and reusable `plugin-release.yml` workflow; see [publishing](docs/development.md).
+- `services.PluginServicesClient`: installation-scoped credentials, private state, configuration,
+  permission queries and structured logs. See [platform services](docs/services.md).
+- `cards.CardTemplate`: data-only card variable mapping and explicitly allowed control buttons.
 
 Build a wheel from this repository with `uv build`.
 The local build is not a PyPI publication. External connector repositories can install the wheel
@@ -69,8 +72,7 @@ never grant agents access automatically. Raw credentials and executable Python e
 not accepted in the manifest. Remote service deployment remains the connector operator's job;
 OpsMesh enable/disable controls platform calls, not that external process.
 
-The complete lifecycle API and version semantics are documented in the repository's
-`docs/automation-and-extension-contracts.md`.
+The platform lifecycle API is documented in OpsMesh's `docs/automation-and-extension-contracts.md`.
 
 ## Message collaboration
 
@@ -92,8 +94,8 @@ with the previous result as context. It does not silently resurrect a terminated
 For replies, verify raw bytes with `parse_automation_delivery(body, headers, secret=...,
 workspace_id=..., automation_id=...)` before reading its typed data. Persist envelope.id for
 deduplication and the greatest sequence per data.event_id to reject stale delivery. Persist this
-state in the connector's own database; the SDK does not implement the external channel or its
-storage. Keep channel authentication and sender identity validation in the external plugin.
+state using the installation-scoped platform store or the connector's own database. Keep channel
+authentication and sender identity validation in the external plugin.
 
 Approval notifications are informational. The SDK never converts a channel sender into a
 platform approver or automatically approves a request. Do not distribute platform credentials

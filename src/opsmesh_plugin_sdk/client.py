@@ -33,9 +33,21 @@ class AutomationClient:
 class AsyncAutomationClient:
     """Caller owns HTTPX lifecycle and retries; normal stream rollover is automatic."""
 
-    def __init__(self, client: httpx.AsyncClient, workspace_id: UUID, automation_id: UUID) -> None:
+    def __init__(
+        self,
+        client: httpx.AsyncClient,
+        workspace_id: UUID,
+        automation_id: UUID,
+        *,
+        install_id: UUID | None = None,
+    ) -> None:
         self._client = client
-        self._path = f"workspaces/{workspace_id}/automations/{automation_id}/events"
+        root = (
+            f"plugin-runtime/{workspace_id}/{install_id}"
+            if install_id
+            else f"workspaces/{workspace_id}"
+        )
+        self._path = f"{root}/automations/{automation_id}/events"
 
     async def submit(self, message: IncomingMessage) -> AcceptedEvent:
         response = await self._client.post(self._path, json=message.model_dump(mode="json"))
