@@ -1,0 +1,15 @@
+{
+  "contract_version": 1,
+  "key": "opsmesh.result",
+  "channel": "dingtalk",
+  "template_id": "REPLACE_WITH_PUBLISHED_TEMPLATE_ID.schema",
+  "parameters": {
+    "title": "title",
+    "markdown": "text",
+    "status": "status",
+    "eventId": "event_id",
+    "approvalId": "approval_id",
+    "approvalText": "approval_text"
+  },
+  "actions": {}
+}

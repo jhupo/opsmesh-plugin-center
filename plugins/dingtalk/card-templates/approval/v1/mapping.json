@@ -1,6 +1,6 @@
 {
   "contract_version": 1,
-  "key": "opsmesh.task",
+  "key": "opsmesh.approval",
   "channel": "dingtalk",
   "template_id": "REPLACE_WITH_PUBLISHED_TEMPLATE_ID.schema",
   "parameters": {
@@ -12,18 +12,6 @@
     "approvalText": "approval_text"
   },
   "actions": {
-    "pause": {
-      "label": "暂停",
-      "action": "pause"
-    },
-    "resume": {
-      "label": "继续",
-      "action": "resume"
-    },
-    "cancel": {
-      "label": "取消",
-      "action": "cancel"
-    },
     "approve": {
       "label": "批准",
       "action": "approve"

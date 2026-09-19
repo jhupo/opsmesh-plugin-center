@@ -26,6 +26,8 @@ def test_message_stream_card_callback_and_recovery():
         failure = True
         revoked = False
         phase = "working"
+        approval = uuid4()
+        decisions = []
         config = ChannelConfiguration(
             automation_id=automation_id,
             corp_id="corp",
@@ -34,7 +36,10 @@ def test_message_stream_card_callback_and_recovery():
                 channel="dingtalk",
                 template_id="published.schema",
                 parameters={"markdown": "text", "status": "status"},
-                actions={"pause": {"label": "Pause", "action": "pause"}},
+                actions={
+                    "pause": {"label": "Pause", "action": "pause"},
+                    "approve": {"label": "Approve", "action": "approve"},
+                },
             ),
         )
 
@@ -63,6 +68,10 @@ def test_message_stream_card_callback_and_recovery():
                 return httpx.Response(204)
             if revoked:
                 return httpx.Response(403)
+            if path.endswith(f"/approvals/{approval}/decision"):
+                assert body["sender_id"] == "corp:employee1"
+                decisions.append(body)
+                return httpx.Response(200, json={"id": str(approval), "status": "approved"})
             if request.method == "POST" and path.endswith("/events"):
                 if body["sender_id"] != "corp:employee1":
                     return httpx.Response(403)
@@ -119,7 +128,11 @@ def test_message_stream_card_callback_and_recovery():
                     },
                     "output": {},
                     "task_status": "running",
-                    "pending_actions": [],
+                    "pending_actions": (
+                        [{"id": str(approval), "kind": "tool_execution", "risk_level": "high"}]
+                        if phase == "approval"
+                        else []
+                    ),
                     "notification_sequence": 0,
                 },
             )
@@ -184,12 +197,27 @@ def test_message_stream_card_callback_and_recovery():
                 "outTrackId": track_id,
                 "content": json.dumps({"cardPrivateData": {"params": {"action": "pause"}}}),
             }
-            track, sender, action = parse_callback(payload, config)
+            track, sender, action, approval_id = parse_callback(payload, config)
+            assert approval_id is None
             await connector.callback(track, sender, action, "callback-1", stamp)
             await connector.callback(track, sender, action, "callback-1", stamp)
             assert callbacks[0] == callbacks[1]
             with pytest.raises(ValueError):
                 await connector.callback(track, "corp:employee2", action, "callback-2", stamp)
+            phase = "approval"
+            await connector.process(await host.read(key))
+            with pytest.raises(ValueError):
+                await connector.callback(
+                    track, sender, "approve", "approval-1", stamp, approval_id=uuid4()
+                )
+            for _ in range(2):
+                assert (
+                    await connector.callback(
+                        track, sender, "approve", "approval-1", stamp, approval_id=approval
+                    )
+                    == approval
+                )
+            assert decisions[0] == decisions[1]
             phase = "completed"
             failure = True
             await connector.process(await host.read(key))

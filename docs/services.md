@@ -38,8 +38,11 @@ async for frame in connector.events(accepted.id):
 
 `mapping.json` 用 `CardTemplate` 校验：channel、template_id、parameters、actions。
 parameters 将厂商变量名映射为 title/text/status/event_id；不执行模板代码。
-actions 的键对应厂商按钮回调标识，仅允许 pause/resume/cancel。
-按钮不能授予权限、批准审批、修改工作流或选择任意 task_id。
+actions 的键对应厂商按钮回调标识，允许 pause/resume/cancel、approve/reject。
+审批通过 `decide_approval(automation_id, event_id, approval_id, ApprovalDecision(...))` 提交，
+另需 `approvals.decide` 安装权限和真实用户的任务审批权限。它不授予角色，不修改工作流，
+不能选择其他任务的审批。同一决定重试幂等，已经作出相反决定返回 409。
+parameters 还支持 approval_id、approval_text，只有平台公开的待审批摘要进入卡片。
 插件必须验证回调来源，把卡片绑定到已接受 event_id 和原发送人，稳定地去重回调，
 再通过普通消息入口提交控制动作。平台仍检查相同会话、发送人和实时 control 权限。
 厂商卡片需要在其平台发布；此合同不是厂商卡片设计器的完整 JSON。

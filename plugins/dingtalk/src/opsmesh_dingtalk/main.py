@@ -50,7 +50,9 @@ class CardHandler(dingtalk_stream.CallbackHandler):  # type: ignore[misc]
 
     async def process(self, callback: Any) -> tuple[int, object]:
         try:
-            track_id, sender_id, action = parse_callback(callback.data, self.connector.config)
+            track_id, sender_id, action, approval_id = parse_callback(
+                callback.data, self.connector.config
+            )
             if not callback.headers.message_id or callback.headers.time is None:
                 raise ValueError("Missing stable callback identity")
             await self.connector.callback(
@@ -59,6 +61,7 @@ class CardHandler(dingtalk_stream.CallbackHandler):  # type: ignore[misc]
                 action,
                 str(callback.headers.message_id),
                 datetime.fromtimestamp(int(callback.headers.time) / 1000, UTC),
+                approval_id=approval_id,
             )
             return dingtalk_stream.AckMessage.STATUS_OK, {
                 "cardUpdateOptions": {"updateCardDataByKey": True},

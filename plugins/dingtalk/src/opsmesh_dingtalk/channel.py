@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
+from uuid import UUID
 
 import dingtalk_stream
 from alibabacloud_dingtalk.card_1_0 import models as cards
@@ -61,7 +62,9 @@ def parse_message(data: dict[str, Any], config: ChannelConfiguration) -> Channel
     )
 
 
-def parse_callback(data: dict[str, Any], config: ChannelConfiguration) -> tuple[str, str, str]:
+def parse_callback(
+    data: dict[str, Any], config: ChannelConfiguration
+) -> tuple[str, str, str, UUID | None]:
     incoming = dingtalk_stream.CardCallbackMessage.from_dict(data)
     if incoming.corp_id != config.corp_id or not incoming.user_id or not incoming.card_instance_id:
         raise ValueError("Unverified card sender")
@@ -69,7 +72,15 @@ def parse_callback(data: dict[str, Any], config: ChannelConfiguration) -> tuple[
     action = private.get("params", {}).get("action")
     if not isinstance(action, str) or action not in config.card.actions:
         raise ValueError("Unsupported card action")
-    return str(incoming.card_instance_id), f"{config.corp_id}:{incoming.user_id}", action
+    approval_id = None
+    if config.card.actions[action].action in {"approve", "reject"}:
+        approval_id = UUID(str(private.get("params", {}).get("approval_id", "")))
+    return (
+        str(incoming.card_instance_id),
+        f"{config.corp_id}:{incoming.user_id}",
+        action,
+        approval_id,
+    )
 
 
 class DingTalkCards:

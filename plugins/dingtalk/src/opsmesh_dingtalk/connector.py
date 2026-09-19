@@ -11,7 +11,13 @@ from uuid import UUID, uuid4
 import httpx
 from opsmesh_plugin_sdk.cards import CardTemplate
 from opsmesh_plugin_sdk.contracts import IncomingMessage
-from opsmesh_plugin_sdk.services import PluginLog, PluginServicesClient, StoredValue, StoreWrite
+from opsmesh_plugin_sdk.services import (
+    ApprovalDecision,
+    PluginLog,
+    PluginServicesClient,
+    StoredValue,
+    StoreWrite,
+)
 from pydantic import BaseModel, ConfigDict, Field
 
 from opsmesh_dingtalk.channel import ChannelMessage
@@ -43,6 +49,9 @@ class Delivery(BaseModel):
     lease_until: float = 0
     expires_at: float
     template: dict[str, object] = Field(default_factory=dict)
+    approval_id: UUID | None = None
+    approval_text: str = ""
+    presented_approvals: list[UUID] = Field(default_factory=list, max_length=32)
 
 
 class Connector:
@@ -90,7 +99,14 @@ class Connector:
         return accepted.id
 
     async def callback(
-        self, track_id: str, sender_id: str, action_id: str, callback_id: str, occurred_at: datetime
+        self,
+        track_id: str,
+        sender_id: str,
+        action_id: str,
+        callback_id: str,
+        occurred_at: datetime,
+        *,
+        approval_id: UUID | None = None,
     ) -> UUID:
         if not track_id.startswith("opsmesh_") or len(track_id) != 72:
             raise ValueError("Unknown card")
@@ -109,6 +125,18 @@ class Connector:
         original = CardTemplate.model_validate(delivery.template).actions.get(action_id)
         if original is None or original.action != action:
             raise ValueError("Card action configuration changed")
+        if action in {"approve", "reject"}:
+            if approval_id is None or approval_id not in delivery.presented_approvals:
+                raise ValueError("Approval was not presented on this card")
+            receipt = await self.host.decide_approval(
+                delivery.automation_id,
+                delivery.event_id,
+                approval_id,
+                ApprovalDecision(sender_id=sender_id, decision=action),
+            )
+            return receipt.id
+        if action not in {"pause", "resume", "cancel"}:
+            raise ValueError("Unsupported task control")
         accepted = await self.host.automation(delivery.automation_id).submit(
             IncomingMessage(
                 event_id="card:" + hashlib.sha256(callback_id.encode()).hexdigest(),
@@ -200,6 +228,8 @@ class Connector:
             if frame.kind == "stream.revoked":
                 delivery.blocked = True
                 delivery.status, delivery.text = "access_revoked", ""
+                delivery.approval_id, delivery.approval_text = None, ""
+                delivery.presented_approvals = []
                 break
             if frame.kind in {"stream.reset", "output.reset"}:
                 delivery.text = ""
@@ -209,7 +239,7 @@ class Connector:
             elif frame.kind.startswith("tool."):
                 delivery.status = frame.kind + ":" + str(frame.data.get("name", ""))[:40]
             elif frame.kind == "approval.required":
-                delivery.status = "approval_required_in_opsmesh"
+                delivery.status = "approval_required"
             elif frame.kind == "output.completed":
                 delivery.text = json.dumps(frame.data.get("output", {}), ensure_ascii=False)[:8000]
                 delivery.status = "completed"
@@ -226,7 +256,15 @@ class Connector:
                 delivery.complete = True
         # Authorization is checked again immediately before sending any newly collected content.
         if not delivery.blocked:
-            await client.state(delivery.event_id)
+            current = await client.state(delivery.event_id)
+            delivery.approval_id = None
+            delivery.approval_text = ""
+            if current.pending_actions:
+                pending = current.pending_actions[0]
+                delivery.approval_id = pending.id
+                delivery.approval_text = f"{pending.kind} ({pending.risk_level})"
+                if pending.id not in delivery.presented_approvals:
+                    delivery.presented_approvals = [*delivery.presented_approvals[-31:], pending.id]
         await self.channel.update(track_id, self._render(delivery))
         delivery.cursor = cursor
         delivery.attempts = 0
@@ -242,4 +280,6 @@ class Connector:
             text=delivery.text,
             status=delivery.status,
             event_id=str(delivery.event_id),
+            approval_id=str(delivery.approval_id) if delivery.approval_id else "",
+            approval_text=delivery.approval_text,
         )

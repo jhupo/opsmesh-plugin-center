@@ -14,7 +14,10 @@
 仓库根安装：`uv sync --locked --all-packages --all-extras --all-groups`；运行：`uv run opsmesh-dingtalk`。
 部署配置见 deploy/configuration.example.json 和 deploy/env.example；密钥不得提交。
 官方卡片模板必须先在钉钉开发者平台发布；card-templates/task/v1/card.json 保存 UI 组件树，mapping.json 保存变量/按钮映射，
-preview.json 保存预览数据；UI 导入后需在设计器编译、预览并发布，当前尚未真实验收。按钮只支持 pause/resume/cancel，不支持审批。
+preview.json 保存预览数据；UI 导入后需在设计器编译、预览并发布，当前尚未真实验收。
+task、approval、result 分别提供任务、审批和结果模板，通过安装配置 card 选择已发布模板。
+按钮支持 pause/resume/cancel 及 approve/reject；审批必须引用该卡片展示过的 approvalId，
+由平台重新检查真实成员、任务审批权限及事件归属。同一决定可重试，相反决定返回冲突。
 
 运行时使用安装专属的有界平台存储，不连接平台数据库。持久化消息后才确认回调，
 任务和卡片使用稳定 ID，失败保留并重试，进程重启从持久化记录恢复。
@@ -41,7 +44,7 @@ preview.json 保存预览数据；UI 导入后需在设计器编译、预览并�
    不从回调参数读取平台用户 ID、任务 ID、角色或审批结果。
 
 正文只支持文本；附件/图片不会被当作可执行指令。群内触发会转入原员工与机器人的单聊卡片，
-不在群里广播日志或答案。需要机器人能联系该员工。审批提示引导用户回 OpsMesh 完成授权操作。
+不在群里广播日志或答案。需要机器人能联系该员工。审批通过平台现有审批服务与任务恢复机制执行。
 
 ## 恢复与运行边界
 

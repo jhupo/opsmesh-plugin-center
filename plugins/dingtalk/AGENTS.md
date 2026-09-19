@@ -7,7 +7,8 @@ Keep cohesive lifecycle code together. Store UI templates/mappings/previews unde
 deployment assets under deploy; use the root CI and workspace lock, never nested workflows.
 No compatibility shims, SDK monkeypatching or silent error fallbacks.
 Platform installation credentials never represent a human user. Bind external staff identities
-in OpsMesh; user messages and card buttons cannot grant roles or approve platform requests.
+in OpsMesh; messages and buttons cannot grant roles. Approval buttons call the platform decision
+endpoint with the displayed approval ID; installation, human and task authority remain mandatory.
 Only the original sender may receive the card or operate it; disable forwarding.
 Never log secrets, raw channel messages, card content or SDK exception response bodies.
 Persist inbox state before acknowledging; use stable event/card IDs, compare-and-swap state,

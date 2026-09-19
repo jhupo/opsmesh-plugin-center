@@ -22,6 +22,8 @@ build-backend = "setuptools.build_meta"
 where = ["src"]
 
 [tool.setuptools.data-files]
+"share/opsmesh/plugins/dingtalk/card-templates/approval/v1" = ["card-templates/approval/v1/*.json", "card-templates/approval/v1/README.md"]
+"share/opsmesh/plugins/dingtalk/card-templates/result/v1" = ["card-templates/result/v1/*.json", "card-templates/result/v1/README.md"]
 "share/opsmesh/plugins/dingtalk/card-templates/task/v1" = ["card-templates/task/v1/*.json", "card-templates/task/v1/README.md"]
 "share/opsmesh/plugins/dingtalk" = ["plugin.json"]
 [dependency-groups]

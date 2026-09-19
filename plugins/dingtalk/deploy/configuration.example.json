@@ -13,7 +13,9 @@
         "title": "title",
         "markdown": "text",
         "status": "status",
-        "eventId": "event_id"
+        "eventId": "event_id",
+        "approvalId": "approval_id",
+        "approvalText": "approval_text"
       },
       "actions": {
         "pause": {
@@ -27,6 +29,14 @@
         "cancel": {
           "label": "取消",
           "action": "cancel"
+        },
+        "approve": {
+          "label": "批准",
+          "action": "approve"
+        },
+        "reject": {
+          "label": "拒绝",
+          "action": "reject"
         }
       }
     },

@@ -44,6 +44,19 @@ class PermissionResult(BaseModel):
     actions: list[str]
 
 
+class ApprovalDecision(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    sender_id: str = Field(min_length=1, max_length=160)
+    decision: Literal["approve", "reject"]
+    reason: str | None = Field(default=None, max_length=2000)
+
+
+class ApprovalReceipt(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    id: UUID
+    status: Literal["approved", "rejected"]
+
+
 class PluginServicesClient:
     """Caller owns the HTTPX client, authentication, lifecycle and retry policy."""
 
@@ -65,6 +78,21 @@ class PluginServicesClient:
         response = await self._client.get(f"{self._path}/configuration")
         response.raise_for_status()
         return dict(response.json())
+
+    async def decide_approval(
+        self,
+        automation_id: UUID,
+        event_id: UUID,
+        approval_id: UUID,
+        decision: ApprovalDecision,
+    ) -> ApprovalReceipt:
+        response = await self._client.post(
+            f"{self._path}/automations/{automation_id}/events/{event_id}"
+            f"/approvals/{approval_id}/decision",
+            json=decision.model_dump(mode="json"),
+        )
+        response.raise_for_status()
+        return ApprovalReceipt.model_validate(response.json())
 
     async def read(self, key: str) -> StoredValue | None:
         self._validate_key(key)
