@@ -34,6 +34,7 @@ jobs:
           version: '0.12.10'
           python-version: '3.11'
       - run: uv sync --locked --all-packages --all-extras --all-groups
+      - run: uv run python scripts/check_package.py "${{ matrix.path }}"
       - run: uv run ruff check --config "${{ matrix.path }}/pyproject.toml" "${{ matrix.path }}"
       - run: uv run mypy --config-file "${{ matrix.path }}/pyproject.toml" "${{ matrix.path }}/src"
       - run: uv run python -m compileall -q "${{ matrix.path }}/src"

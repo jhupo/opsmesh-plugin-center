@@ -1,0 +1,4 @@
+# Workspace administrators must independently trust this publisher key.
+publisher_key_id = "opsmesh-plugins"
+platform_requires = ">=0.1.0"
+sdk_requires = ">=0.3,<0.4"

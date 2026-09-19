@@ -66,7 +66,22 @@ jobs:
           SOURCE_COMMIT: ${{ github.sha }}
         run: |
           python -m pip install sdk-dist/*.whl cryptography==50.0.1
-          opsmesh-plugin-publish "$PACKAGE_PATH/plugin.json" dist/release.json --tag-prefix "$PACKAGE_PATH/v" --publisher-key-id opsmesh-plugins --platform-requires '>=0.1.0' --sdk-requires '>=0.3,<0.4' --license Apache-2.0 --repository "$SOURCE_REPOSITORY" --commit "$SOURCE_COMMIT"
+          python - <<'PY'
+          import os, pathlib, subprocess, tomllib
+          path = pathlib.Path(os.environ["PACKAGE_PATH"])
+          release = tomllib.loads((path / "release.toml").read_text())
+          project = tomllib.loads((path / "pyproject.toml").read_text())["project"]
+          subprocess.run([
+              "opsmesh-plugin-publish", str(path / "plugin.json"), "dist/release.json",
+              "--tag-prefix", str(path) + "/v",
+              "--publisher-key-id", release["publisher_key_id"],
+              "--platform-requires", release["platform_requires"],
+              "--sdk-requires", release["sdk_requires"],
+              "--license", project["license"],
+              "--repository", os.environ["SOURCE_REPOSITORY"],
+              "--commit", os.environ["SOURCE_COMMIT"],
+          ], check=True)
+          PY
       - run: cd dist && sha256sum * > SHA256SUMS
       - uses: actions/attest-build-provenance@96b4a1ef7235a096b17240c259729fdd70c83d45
         with:
