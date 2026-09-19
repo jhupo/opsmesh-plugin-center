@@ -1,6 +1,6 @@
 # 插件平台服务与卡片合同
 
-状态：2026-09-18，SDK 0.3.0。平台实现由 OpsMesh 的插件服务接口负责。
+状态：2026-09-19，SDK 0.4.0。平台实现由 OpsMesh 的插件服务接口负责。
 
 管理员批准 manifest 权限、绑定自动化后，为该安装签发有期限的 `omp_` 凭据。
 该凭据只能访问 `/api/v1/plugin-runtime/{workspace_id}/{install_id}`，不能访问普通用户 API。
@@ -24,7 +24,7 @@ async for frame in connector.events(accepted.id):
     ...
 ```
 
-权限：`messages.receive`、`messages.read`、`configuration.read`、`storage.read`、
+权限：`messages.receive`、`messages.read`、`approvals.decide`、`attachments.write`、`configuration.read`、`storage.read`、
 `storage.write`、`permissions.read`、`logs.write`。manifest 声明不等于已获授权。
 `permissions(PermissionQuery(...))` 返回发送人对指定资源的实际动作，仅供展示/预检查，
 最终调用仍需重新授权。无法读取的资源返回空动作，不返回资源内容。
@@ -46,6 +46,13 @@ parameters 还支持 approval_id、approval_text，只有平台公开的待审�
 插件必须验证回调来源，把卡片绑定到已接受 event_id 和原发送人，稳定地去重回调，
 再通过普通消息入口提交控制动作。平台仍检查相同会话、发送人和实时 control 权限。
 厂商卡片需要在其平台发布；此合同不是厂商卡片设计器的完整 JSON。
+
+`upload_attachment` 只接受当前安装和自动化允许的 image/file/audio，单个不超过 20 MiB，
+使用消息发送人的外部身份重新授权，并以 `event_id + slot` 固定去重。平台把内容写入现有
+工作区文件存储，返回带 checksum 的文件引用；消息受理时再次检查发送人、自动化、安装、
+文件权限和摘要。OpenAI 适配器把图片映射为 Responses 的 `input_image`，文件映射为
+`input_file`；Claude Agent SDK 使用其用户消息 image/document 内容块，语音依赖钉钉消息的
+官方 recognition 文本。任意下载 URL、宿主机路径和未授权文件引用都不会进入模型。
 
 流式 `output.text` 是当前预览的替换文本；`output.completed` 是通过输出合同的最终结果。
 工具事件只显示批准公开的名称和状态。插件负责节流更新、持久化游标、重连及投递失败恢复。

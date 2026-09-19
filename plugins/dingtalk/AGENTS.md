@@ -9,7 +9,9 @@ No compatibility shims, SDK monkeypatching or silent error fallbacks.
 Platform installation credentials never represent a human user. Bind external staff identities
 in OpsMesh; messages and buttons cannot grant roles. Approval buttons call the platform decision
 endpoint with the displayed approval ID; installation, human and task authority remain mandatory.
-Only the original sender may receive the card or operate it; disable forwarding.
+Private cards go to the original sender. Group cards require explicit immutable staff recipients,
+live official group membership checks and platform task-read authorization for every recipient.
+Only the original sender operates task controls; disable forwarding in either mode.
 Never log secrets, raw channel messages, card content or SDK exception response bodies.
 Persist inbox state before acknowledging; use stable event/card IDs, compare-and-swap state,
 and retain recoverable failures. Do not claim exactly-once delivery from remote APIs.

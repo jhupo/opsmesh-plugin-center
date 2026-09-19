@@ -8,6 +8,7 @@ import httpx
 from pydantic import BaseModel, ConfigDict, Field
 
 from opsmesh_plugin_sdk.client import AsyncAutomationClient
+from opsmesh_plugin_sdk.contracts import AttachmentKind, MessageAttachment
 
 
 class StoredValue(BaseModel):
@@ -57,6 +58,17 @@ class ApprovalReceipt(BaseModel):
     status: Literal["approved", "rejected"]
 
 
+class AttachmentUpload(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    sender_id: str = Field(min_length=1, max_length=160)
+    external_event_id: str = Field(min_length=1, max_length=160)
+    slot: int = Field(ge=0, le=4)
+    kind: AttachmentKind
+    filename: str = Field(min_length=1, max_length=260)
+    content_type: str = Field(min_length=1, max_length=120)
+    transcript: str = Field(default="", max_length=16000, repr=False)
+
+
 class PluginServicesClient:
     """Caller owns the HTTPX client, authentication, lifecycle and retry policy."""
 
@@ -78,6 +90,22 @@ class PluginServicesClient:
         response = await self._client.get(f"{self._path}/configuration")
         response.raise_for_status()
         return dict(response.json())
+
+    async def upload_attachment(
+        self,
+        automation_id: UUID,
+        metadata: AttachmentUpload,
+        content: bytes,
+    ) -> MessageAttachment:
+        if not 0 < len(content) <= 20 * 1024 * 1024:
+            raise ValueError("Attachment must contain at most 20 MiB")
+        response = await self._client.post(
+            f"{self._path}/automations/{automation_id}/attachments",
+            data={"metadata": metadata.model_dump_json()},
+            files={"file": (metadata.filename, content, metadata.content_type)},
+        )
+        response.raise_for_status()
+        return MessageAttachment.model_validate(response.json())
 
     async def decide_approval(
         self,

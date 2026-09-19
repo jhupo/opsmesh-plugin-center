@@ -4,6 +4,7 @@
     "automation_id": "00000000-0000-0000-0000-000000000000",
     "corp_id": "REPLACE_CORP_ID",
     "contract_version": 1,
+    "allowed_attachment_kinds": ["image", "file", "audio"],
     "card": {
       "contract_version": 1,
       "key": "opsmesh.task",

@@ -1,11 +1,11 @@
 {
   "key": "opsmesh.dingtalk",
   "name": "OpsMesh DingTalk",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "capabilities": [{
     "key": "receive",
     "kind": "message_trigger",
     "title": "DingTalk message ingress and private card output",
-    "required_permissions": ["messages.receive", "messages.read", "approvals.decide", "configuration.read", "storage.read", "storage.write", "permissions.read", "logs.write"]
+    "required_permissions": ["messages.receive", "messages.read", "approvals.decide", "attachments.write", "configuration.read", "storage.read", "storage.write", "permissions.read", "logs.write"]
   }]
 }

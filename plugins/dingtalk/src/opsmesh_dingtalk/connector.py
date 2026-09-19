@@ -13,6 +13,8 @@ from opsmesh_plugin_sdk.cards import CardTemplate
 from opsmesh_plugin_sdk.contracts import IncomingMessage
 from opsmesh_plugin_sdk.services import (
     ApprovalDecision,
+    AttachmentUpload,
+    PermissionQuery,
     PluginLog,
     PluginServicesClient,
     StoredValue,
@@ -20,21 +22,32 @@ from opsmesh_plugin_sdk.services import (
 )
 from pydantic import BaseModel, ConfigDict, Field
 
-from opsmesh_dingtalk.channel import ChannelMessage
+from opsmesh_dingtalk.channel import ChannelMessage, RawAttachment
 from opsmesh_dingtalk.configuration import ChannelConfiguration
 
 
 class CardChannel(Protocol):
     async def create(
-        self, track_id: str, staff_id: str, config: ChannelConfiguration, values: dict[str, str]
+        self,
+        track_id: str,
+        staff_id: str,
+        config: ChannelConfiguration,
+        values: dict[str, str],
+        *,
+        group_id: str | None,
+        recipients: list[str],
     ) -> None: ...
     async def update(self, track_id: str, values: dict[str, str]) -> None: ...
+    async def require_group_members(self, group_id: str, recipients: list[str]) -> None: ...
+    async def download(self, attachment: RawAttachment) -> tuple[bytes, str]: ...
 
 
 class Delivery(BaseModel):
     model_config = ConfigDict(extra="forbid")
     message: IncomingMessage
     staff_id: str
+    group_id: str | None = None
+    recipients: list[str] = Field(default_factory=list, max_length=20)
     automation_id: UUID
     event_id: UUID
     cursor: str = "0-0"
@@ -71,13 +84,57 @@ class Connector:
 
     async def receive(self, incoming: ChannelMessage) -> UUID:
         message = incoming.message
+        group_id = None
+        recipients: list[str] = []
+        if self.config.reply_mode == "group_recipients":
+            group_id = incoming.group_id
+            recipients = self.config.group_recipients.get(group_id or "", [])
+            if group_id is None or incoming.staff_id not in recipients:
+                raise ValueError("Message is not in an approved group audience")
+            await self.channel.require_group_members(group_id, recipients)
+        if incoming.attachments:
+            uploaded = []
+            for slot, attachment in enumerate(incoming.attachments):
+                content, content_type = await self.channel.download(attachment)
+                uploaded.append(
+                    await self.host.upload_attachment(
+                        self.config.automation_id,
+                        AttachmentUpload(
+                            sender_id=message.sender_id,
+                            external_event_id=message.event_id,
+                            slot=slot,
+                            kind=attachment.kind,
+                            filename=attachment.filename,
+                            content_type=content_type,
+                            transcript=attachment.text,
+                        ),
+                        content,
+                    )
+                )
+            message = message.model_copy(
+                update={
+                    "text": message.text
+                    or next((item.text for item in incoming.attachments if item.text), ""),
+                    "attachments": uploaded,
+                }
+            )
         accepted = await self.host.automation(self.config.automation_id).submit(message)
         key = self.key(message)
         current = await self.host.read(key)
         if current is None:
             delivery = Delivery(
-                message=message,
+                # The platform owns the accepted body. The bounded outbox only needs routing
+                # metadata for controls; do not duplicate transcripts or attachments here.
+                message=message.model_copy(
+                    update={
+                        "text": "",
+                        "attachments": [],
+                        "data": {self.config.question_field: ""},
+                    }
+                ),
                 staff_id=incoming.staff_id,
+                group_id=group_id,
+                recipients=recipients,
                 automation_id=self.config.automation_id,
                 event_id=accepted.id,
                 expires_at=time.time() + self.config.retention_hours * 3600,
@@ -121,6 +178,9 @@ class Connector:
             or delivery.blocked
         ):
             raise ValueError("Card action denied")
+        if delivery.group_id is not None:
+            state = await self.host.automation(delivery.automation_id).state(delivery.event_id)
+            await self._authorize_audience(delivery, state.event.task_id)
         action = self.config.card.actions[action_id].action
         original = CardTemplate.model_validate(delivery.template).actions.get(action_id)
         if original is None or original.action != action:
@@ -212,14 +272,29 @@ class Connector:
     async def _deliver(self, row: StoredValue, delivery: Delivery) -> None:
         client = self.host.automation(delivery.automation_id)
         # State access and every stream batch revalidate both installation and human authority.
-        await client.state(delivery.event_id)
+        initial = await client.state(delivery.event_id)
+        if delivery.group_id is not None and initial.event.task_id is None:
+            if initial.event.status in {"failed", "rejected", "skipped", "completed"}:
+                delivery.blocked = True
+            delivery.lease_owner, delivery.lease_until = "", 0
+            await self.host.write(
+                row.key,
+                StoreWrite(expected_revision=row.revision, value=delivery.model_dump(mode="json")),
+            )
+            return
+        await self._authorize_audience(delivery, initial.event.task_id)
         track_id = "opsmesh_" + row.key[5:]
         if not delivery.created:
             snapshot_config = self.config.model_copy(
                 update={"card": CardTemplate.model_validate(delivery.template)}
             )
             await self.channel.create(
-                track_id, delivery.staff_id, snapshot_config, self._render(delivery)
+                track_id,
+                delivery.staff_id,
+                snapshot_config,
+                self._render(delivery),
+                group_id=delivery.group_id,
+                recipients=delivery.recipients,
             )
             delivery.created = True
         cursor = delivery.cursor
@@ -234,14 +309,16 @@ class Connector:
             if frame.kind in {"stream.reset", "output.reset"}:
                 delivery.text = ""
             elif frame.kind == "output.text":
-                delivery.text = str(frame.data.get("text", ""))[:8000]
+                delivery.text = _card_text(str(frame.data.get("text", "")))
                 delivery.status = "working"
             elif frame.kind.startswith("tool."):
                 delivery.status = frame.kind + ":" + str(frame.data.get("name", ""))[:40]
             elif frame.kind == "approval.required":
                 delivery.status = "approval_required"
             elif frame.kind == "output.completed":
-                delivery.text = json.dumps(frame.data.get("output", {}), ensure_ascii=False)[:8000]
+                delivery.text = _card_text(
+                    json.dumps(frame.data.get("output", {}), ensure_ascii=False)
+                )
                 delivery.status = "completed"
             elif frame.kind in {"output.rejected", "task.failed", "task.cancelled"}:
                 delivery.text, delivery.status = "", frame.kind
@@ -257,6 +334,7 @@ class Connector:
         # Authorization is checked again immediately before sending any newly collected content.
         if not delivery.blocked:
             current = await client.state(delivery.event_id)
+            await self._authorize_audience(delivery, current.event.task_id)
             delivery.approval_id = None
             delivery.approval_text = ""
             if current.pending_actions:
@@ -274,6 +352,30 @@ class Connector:
             StoreWrite(expected_revision=row.revision, value=delivery.model_dump(mode="json")),
         )
 
+    async def _authorize_audience(self, delivery: Delivery, task_id: UUID | None) -> None:
+        if delivery.group_id is None:
+            if self.config.reply_mode != "sender_only":
+                raise ValueError("Delivery mode changed; existing audience cannot be replaced")
+            return
+        if (
+            self.config.reply_mode != "group_recipients"
+            or self.config.group_recipients.get(delivery.group_id) != delivery.recipients
+            or task_id is None
+        ):
+            raise ValueError("Group audience changed or task is unavailable")
+        await self.channel.require_group_members(delivery.group_id, delivery.recipients)
+        for staff in delivery.recipients:
+            permission = await self.host.permissions(
+                PermissionQuery(
+                    automation_id=delivery.automation_id,
+                    sender_id=f"{self.config.corp_id}:{staff}",
+                    resource_kind="task",
+                    resource_id=task_id,
+                )
+            )
+            if "read" not in permission.actions:
+                raise ValueError("Group recipient cannot read this task")
+
     def _render(self, delivery: Delivery) -> dict[str, str]:
         return CardTemplate.model_validate(delivery.template).render(
             title="OpsMesh",
@@ -283,3 +385,8 @@ class Connector:
             approval_id=str(delivery.approval_id) if delivery.approval_id else "",
             approval_text=delivery.approval_text,
         )
+
+
+def _card_text(value: str) -> str:
+    # Escaped emoji can occupy twelve bytes each in the platform's 64 KB JSON value limit.
+    return value if len(value) <= 3000 else value[:3000] + "\n[output truncated]"

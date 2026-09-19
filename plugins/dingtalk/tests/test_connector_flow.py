@@ -1,9 +1,12 @@
 """Channel product flow with a simulated platform and channel; no live delivery claim."""
 
 import asyncio
+import hashlib
 import json
 from datetime import UTC, datetime
-from uuid import uuid4
+from email import policy
+from email.parser import BytesParser
+from uuid import NAMESPACE_URL, uuid4, uuid5
 
 import httpx
 import pytest
@@ -16,7 +19,9 @@ from opsmesh_dingtalk.configuration import ChannelConfiguration
 from opsmesh_dingtalk.connector import Connector
 
 
-def test_message_stream_card_callback_and_recovery():
+@pytest.mark.parametrize("group_reply", [False, True])
+@pytest.mark.parametrize("media", [None, "picture", "file", "audio"])
+def test_message_stream_card_callback_and_recovery(group_reply, media):
     async def flow():
         workspace_id, install_id, automation_id, event_id = (uuid4() for _ in range(4))
         store = {}
@@ -25,12 +30,18 @@ def test_message_stream_card_callback_and_recovery():
         callbacks = []
         failure = True
         revoked = False
+        member = True
+        readable = True
+        task_id = uuid4()
         phase = "working"
         approval = uuid4()
         decisions = []
         config = ChannelConfiguration(
             automation_id=automation_id,
             corp_id="corp",
+            allowed_attachment_kinds=["image", "file", "audio"],
+            reply_mode="group_recipients" if group_reply else "sender_only",
+            group_recipients={"group": ["employee1"]} if group_reply else {},
             card=CardTemplate(
                 key="task",
                 channel="dingtalk",
@@ -45,6 +56,34 @@ def test_message_stream_card_callback_and_recovery():
 
         def transport(request):
             path = request.url.path
+            if path.endswith("/attachments"):
+                multipart = BytesParser(policy=policy.default).parsebytes(
+                    b"Content-Type: "
+                    + request.headers["content-type"].encode()
+                    + b"\r\n\r\n"
+                    + request.content
+                )
+                parts = {
+                    part.get_param("name", header="content-disposition"): part
+                    for part in multipart.iter_parts()
+                }
+                metadata = json.loads(parts["metadata"].get_payload(decode=True))
+                binary = parts["file"].get_payload(decode=True)
+                assert metadata["external_event_id"] == "message-1"
+                assert metadata["sender_id"] == "corp:employee1"
+                assert binary == b"media content"
+                return httpx.Response(
+                    201,
+                    json={
+                        "file_id": str(uuid5(NAMESPACE_URL, "media-1")),
+                        "kind": metadata["kind"],
+                        "filename": metadata["filename"],
+                        "content_type": metadata["content_type"],
+                        "size_bytes": len(binary),
+                        "checksum_sha256": hashlib.sha256(binary).hexdigest(),
+                        "transcript": metadata["transcript"],
+                    },
+                )
             body = json.loads(request.content) if request.content else None
             if "/storage/" in path:
                 key = path.rsplit("/", 1)[1]
@@ -68,6 +107,9 @@ def test_message_stream_card_callback_and_recovery():
                 return httpx.Response(204)
             if revoked:
                 return httpx.Response(403)
+            if path.endswith("/permissions"):
+                assert body["resource_id"] == str(task_id)
+                return httpx.Response(200, json={"actions": ["read"] if readable else []})
             if path.endswith(f"/approvals/{approval}/decision"):
                 assert body["sender_id"] == "corp:employee1"
                 decisions.append(body)
@@ -124,7 +166,7 @@ def test_message_stream_card_callback_and_recovery():
                         "reply_delivery_id": None,
                         "error_code": None,
                         "status": "dispatched",
-                        "task_id": None,
+                        "task_id": str(task_id),
                     },
                     "output": {},
                     "task_status": "running",
@@ -138,8 +180,20 @@ def test_message_stream_card_callback_and_recovery():
             )
 
         class Channel:
-            async def create(self, track_id, staff_id, cfg, values):
+            async def download(self, attachment):
+                types = {"image": "image/png", "file": "text/plain", "audio": "audio/amr"}
+                assert attachment.download_code == "private-download-code"
+                return b"media content", types[attachment.kind]
+
+            async def create(self, track_id, staff_id, cfg, values, *, group_id, recipients):
+                assert group_id == ("group" if group_reply else None)
+                assert recipients == (["employee1"] if group_reply else [])
                 output.append((track_id, staff_id, values))
+
+            async def require_group_members(self, group_id, recipients):
+                assert group_id == "group" and recipients == ["employee1"]
+                if not member:
+                    raise ValueError("Member removed")
 
             async def update(self, track_id, values):
                 nonlocal failure
@@ -165,11 +219,24 @@ def test_message_stream_card_callback_and_recovery():
                 "createAt": 1000000,
             }
             incoming = parse_message(raw, config)
-            assert await connector.receive(incoming) == await connector.receive(incoming)
-            with pytest.raises(httpx.HTTPStatusError):
-                await connector.receive(
-                    parse_message({**raw, "senderStaffId": "employee2"}, config)
+            if media is not None:
+                raw.update(
+                    {
+                        "msgtype": media,
+                        "content": {
+                            "downloadCode": "private-download-code",
+                            "fileName": "order.txt",
+                            "recognition": "Investigate order 123",
+                        },
+                    }
                 )
+                incoming = parse_message(raw, config)
+            assert await connector.receive(incoming) == await connector.receive(incoming)
+            if media is None:
+                with pytest.raises((httpx.HTTPStatusError, ValueError)):
+                    await connector.receive(
+                        parse_message({**raw, "senderStaffId": "employee2"}, config)
+                    )
             key = connector.key(incoming.message)
             await connector.process(await host.read(key))
             failed = await host.read(key)
@@ -218,6 +285,26 @@ def test_message_stream_card_callback_and_recovery():
                     == approval
                 )
             assert decisions[0] == decisions[1]
+            if group_reply:
+                before = len(output)
+                member = False
+                await connector.process(await host.read(key))
+                assert len(output) == before
+                member = True
+                readable = False
+                row = await host.read(key)
+                await host.write(
+                    key,
+                    StoreWrite(expected_revision=row.revision, value={**row.value, "retry_at": 0}),
+                )
+                await connector.process(await host.read(key))
+                assert len(output) == before
+                readable = True
+                row = await host.read(key)
+                await host.write(
+                    key,
+                    StoreWrite(expected_revision=row.revision, value={**row.value, "retry_at": 0}),
+                )
             phase = "completed"
             failure = True
             await connector.process(await host.read(key))

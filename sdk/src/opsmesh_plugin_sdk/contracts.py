@@ -8,6 +8,18 @@ from uuid import UUID
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
 MessageAction = Literal["start", "follow_up", "add_instruction", "pause", "resume", "cancel"]
+AttachmentKind = Literal["image", "file", "audio"]
+
+
+class MessageAttachment(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    file_id: UUID
+    kind: AttachmentKind
+    filename: str = Field(min_length=1, max_length=260)
+    content_type: str = Field(min_length=1, max_length=120)
+    size_bytes: int = Field(ge=1, le=20 * 1024 * 1024)
+    checksum_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    transcript: str = Field(default="", max_length=16000, repr=False)
 
 
 class IncomingMessage(BaseModel):
@@ -22,6 +34,7 @@ class IncomingMessage(BaseModel):
     data: dict[str, object] = Field(default_factory=dict, max_length=64)
     action: MessageAction = "start"
     reply_to_event_id: UUID | None = None
+    attachments: list[MessageAttachment] = Field(default_factory=list, max_length=5)
 
     @model_validator(mode="after")
     def validate_target(self) -> IncomingMessage:
@@ -29,8 +42,13 @@ class IncomingMessage(BaseModel):
             self.action in {"start", "follow_up", "add_instruction"}
             and not self.text
             and not self.data
+            and not self.attachments
         ):
             raise ValueError("Message requires text or structured data")
+        if self.attachments and self.action != "start":
+            raise ValueError("Attachments belong to the initial message of a task")
+        if len({item.file_id for item in self.attachments}) != len(self.attachments):
+            raise ValueError("Attachment references must be unique")
         if (self.action == "start") != (self.reply_to_event_id is None):
             raise ValueError("Only start messages omit reply_to_event_id")
         if self.action in {"follow_up", "add_instruction"} and len(self.text) > 4000:
