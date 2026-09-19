@@ -1,0 +1,49 @@
+[project]
+name = "opsmesh-plugin-dingtalk"
+version = "0.1.0"
+description = "Independent DingTalk Stream connector for OpsMesh"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+dependencies = [
+  "opsmesh-plugin-sdk>=0.3.0,<0.4",
+  "dingtalk-stream==0.24.3",
+  "alibabacloud-dingtalk==2.2.60",
+  "alibabacloud-tea-openapi>=0.4,<1",
+  "alibabacloud-tea-util>=0.3,<1",
+]
+[project.scripts]
+opsmesh-dingtalk = "opsmesh_dingtalk.main:main"
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.data-files]
+"share/opsmesh/plugins/dingtalk/card-templates/task/v1" = ["card-templates/task/v1/*.json", "card-templates/task/v1/README.md"]
+"share/opsmesh/plugins/dingtalk" = ["plugin.json"]
+[dependency-groups]
+dev = ["ruff>=0.12,<1", "mypy>=1.17,<2", "pytest>=8.4,<9"]
+[tool.ruff]
+src = ["src"]
+line-length = 100
+target-version = "py311"
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["opsmesh_dingtalk"]
+known-third-party = ["opsmesh_plugin_sdk"]
+[tool.mypy]
+python_version = "3.11"
+strict = true
+plugins = ["pydantic.mypy"]
+files = ["src"]
+[[tool.mypy.overrides]]
+module = ["dingtalk_stream.*", "alibabacloud_dingtalk.*", "alibabacloud_tea_openapi.*", "alibabacloud_tea_util.*"]
+ignore_missing_imports = true
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

@@ -1,4 +1,4 @@
-name: SDK CI
+name: Plugin Center CI
 on:
   push:
     branches: [master]
@@ -7,44 +7,48 @@ on:
 permissions:
   contents: read
 jobs:
-  check:
+  packages:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-    strategy:
-      matrix:
-        python: ['3.11', '3.12', '3.13', '3.14']
+    outputs:
+      matrix: ${{ steps.discover.outputs.matrix }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-      - uses: astral-sh/setup-uv@d0d8abe699bfb85fec6de9f7adb5ae17292296ff
-        with:
-          version: '0.12.10'
-          python-version: ${{ matrix.python }}
-      - run: uv sync --frozen --extra signing
-      - run: uv run ruff check .
-      - run: uv run mypy
-      - run: uv run python -m compileall -q src
-  build:
-    needs: check
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-      - uses: astral-sh/setup-uv@d0d8abe699bfb85fec6de9f7adb5ae17292296ff
-        with:
-          version: '0.12.10'
-          python-version: '3.12'
-      - run: uv sync --frozen --extra signing
-      - run: uv build
-      - run: uv run twine check --strict dist/*
-      - name: Check installed wheel without backend or signing dependencies
+      - id: discover
         run: |
-          uv venv /tmp/sdk-wheel
-          uv pip install --python /tmp/sdk-wheel/bin/python dist/*.whl
-          cd /tmp
-          /tmp/sdk-wheel/bin/python -c "from opsmesh_plugin_sdk import client, contracts, packages, webhooks; import importlib.metadata; assert importlib.metadata.metadata('opsmesh-plugin-sdk')['License-Expression'] == 'Apache-2.0'"
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json, pathlib, tomllib
+          paths = [pathlib.Path("sdk"), *sorted(pathlib.Path("plugins").iterdir())]
+          packages = [{"path": str(p), "name": tomllib.loads((p/"pyproject.toml").read_text())["project"]["name"]} for p in paths if p.is_dir()]
+          print("matrix=" + json.dumps({"include": packages}))
+          PY
+  check:
+    needs: packages
+    strategy:
+      matrix: ${{ fromJSON(needs.packages.outputs.matrix) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: astral-sh/setup-uv@d0d8abe699bfb85fec6de9f7adb5ae17292296ff
+        with:
+          version: '0.12.10'
+          python-version: '3.11'
+      - run: uv sync --locked --all-packages --all-extras --all-groups
+      - run: uv run ruff check --config "${{ matrix.path }}/pyproject.toml" "${{ matrix.path }}"
+      - run: uv run mypy --config-file "${{ matrix.path }}/pyproject.toml" "${{ matrix.path }}/src"
+      - run: uv run python -m compileall -q "${{ matrix.path }}/src"
+      - name: Product flow
+        env:
+          PACKAGE_PATH: ${{ matrix.path }}
+        run: |
+          if [ -d "$PACKAGE_PATH/tests" ]; then
+            uv run pytest -c "$PACKAGE_PATH/pyproject.toml" "$PACKAGE_PATH/tests"
+          fi
+      - run: uv build --package "${{ matrix.name }}" --out-dir dist
+      - run: uv run twine check --strict dist/*
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: sdk-distributions-${{ github.run_id }}
+          name: distributions-${{ matrix.name }}-${{ github.run_id }}
           path: dist/*
           if-no-files-found: error
           retention-days: 7

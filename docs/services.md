@@ -36,7 +36,7 @@ async for frame in connector.events(accepted.id):
 不提供 SQL、数据库连接、宿主机目录或平台密钥导出。配置只存非敏感值及环境变量引用，
 渠道凭据由插件部署环境的 secret manager 提供。结构化日志经平台统一脱敏，不写原始消息正文。
 
-`card.json` 用 `CardTemplate` 校验：channel、template_id、parameters、actions。
+`mapping.json` 用 `CardTemplate` 校验：channel、template_id、parameters、actions。
 parameters 将厂商变量名映射为 title/text/status/event_id；不执行模板代码。
 actions 的键对应厂商按钮回调标识，仅允许 pause/resume/cancel。
 按钮不能授予权限、批准审批、修改工作流或选择任意 task_id。

@@ -1,53 +1,81 @@
-name: SDK release
+name: Package release
 on:
   push:
-    tags: ['v*']
+    tags: ['sdk/v*', 'plugins/*/v*']
 permissions:
   contents: read
 concurrency:
-  group: sdk-release-${{ github.ref }}
+  group: release-${{ github.ref }}
   cancel-in-progress: false
 jobs:
   identity:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    outputs:
+      package: ${{ steps.identity.outputs.package }}
+      path: ${{ steps.identity.outputs.path }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           fetch-depth: 0
-      - name: Verify immutable release identity
+      - id: identity
         env:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
           git merge-base --is-ancestor HEAD origin/master
-          python -c "import os,re,tomllib; version=tomllib.load(open('pyproject.toml','rb'))['project']['version']; assert re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+(?:rc[0-9]+)?',version); assert os.environ['RELEASE_TAG']=='v'+version"
-  check:
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json, os, pathlib, re, tomllib
+          tag = os.environ["RELEASE_TAG"]
+          match = re.fullmatch(r"(sdk|plugins/[a-z][a-z0-9-]*)/v([0-9]+\.[0-9]+\.[0-9]+(?:rc[0-9]+)?)", tag)
+          assert match, "Invalid package tag"
+          path, version = match.groups()
+          package = tomllib.loads((pathlib.Path(path)/"pyproject.toml").read_text())["project"]
+          assert package["version"] == version
+          if path != "sdk":
+              assert json.loads((pathlib.Path(path)/"plugin.json").read_text())["version"] == version
+          print("package=" + package["name"])
+          print("path=" + path)
+          PY
+  gate:
     needs: identity
     uses: ./.github/workflows/ci.yml
-  release:
-    needs: check
+  publish:
+    needs: [identity, gate]
     runs-on: ubuntu-latest
-    timeout-minutes: 10
     permissions:
       contents: write
       id-token: write
       attestations: write
     steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
-          name: sdk-distributions-${{ github.run_id }}
+          name: distributions-${{ needs.identity.outputs.package }}-${{ github.run_id }}
           path: dist
-      - name: Hash the verified distributions
-        run: cd dist && sha256sum *.whl *.tar.gz > SHA256SUMS
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        if: needs.identity.outputs.path != 'sdk'
+        with:
+          name: distributions-opsmesh-plugin-sdk-${{ github.run_id }}
+          path: sdk-dist
+      - name: Sign plugin descriptor with the verified SDK wheel
+        if: needs.identity.outputs.path != 'sdk'
+        env:
+          OPSMESH_PLUGIN_SIGNING_KEY: ${{ secrets.OPSMESH_PLUGIN_SIGNING_KEY }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          PACKAGE_PATH: ${{ needs.identity.outputs.path }}
+          SOURCE_REPOSITORY: https://github.com/${{ github.repository }}
+          SOURCE_COMMIT: ${{ github.sha }}
+        run: |
+          python -m pip install sdk-dist/*.whl cryptography==50.0.1
+          opsmesh-plugin-publish "$PACKAGE_PATH/plugin.json" dist/release.json --tag-prefix "$PACKAGE_PATH/v" --publisher-key-id opsmesh-plugins --platform-requires '>=0.1.0' --sdk-requires '>=0.3,<0.4' --license Apache-2.0 --repository "$SOURCE_REPOSITORY" --commit "$SOURCE_COMMIT"
+      - run: cd dist && sha256sum * > SHA256SUMS
       - uses: actions/attest-build-provenance@96b4a1ef7235a096b17240c259729fdd70c83d45
         with:
           subject-path: 'dist/*'
-      - name: Publish the same verified assets
-        env:
+      - env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
           flags=()
           if [[ "$RELEASE_TAG" == *rc* ]]; then flags+=(--prerelease); fi
-          gh release create "$RELEASE_TAG" dist/*.whl dist/*.tar.gz dist/SHA256SUMS --verify-tag --generate-notes "${flags[@]}"
+          gh release create "$RELEASE_TAG" dist/* --verify-tag --generate-notes "${flags[@]}"

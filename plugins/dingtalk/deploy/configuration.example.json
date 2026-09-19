@@ -1,0 +1,37 @@
+{
+  "expected_revision": 0,
+  "value": {
+    "automation_id": "00000000-0000-0000-0000-000000000000",
+    "corp_id": "REPLACE_CORP_ID",
+    "contract_version": 1,
+    "card": {
+      "contract_version": 1,
+      "key": "opsmesh.task",
+      "channel": "dingtalk",
+      "template_id": "REPLACE_WITH_PUBLISHED_TEMPLATE_ID.schema",
+      "parameters": {
+        "title": "title",
+        "markdown": "text",
+        "status": "status",
+        "eventId": "event_id"
+      },
+      "actions": {
+        "pause": {
+          "label": "暂停",
+          "action": "pause"
+        },
+        "resume": {
+          "label": "继续",
+          "action": "resume"
+        },
+        "cancel": {
+          "label": "取消",
+          "action": "cancel"
+        }
+      }
+    },
+    "reply_mode": "sender_only",
+    "poll_seconds": 3,
+    "retention_hours": 24
+  }
+}

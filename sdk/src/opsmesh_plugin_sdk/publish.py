@@ -21,10 +21,11 @@ def main() -> None:
     parser.add_argument("--license", required=True)
     parser.add_argument("--repository", required=True)
     parser.add_argument("--commit", required=True)
+    parser.add_argument("--tag-prefix", required=True)
     args = parser.parse_args()
     manifest = PluginManifest.model_validate_json(args.manifest.read_bytes())
     tag = os.environ.get("RELEASE_TAG")
-    if tag is not None and tag != "v" + manifest.version:
+    if tag is not None and tag != args.tag_prefix + manifest.version:
         parser.error("Release tag must match manifest version")
     private_key = base64.b64decode(os.environ["OPSMESH_PLUGIN_SIGNING_KEY"], validate=True)
     release = sign_release(

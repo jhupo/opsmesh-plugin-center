@@ -1,63 +1,26 @@
-# 开发与发布
+# 贡献与发布
 
-状态：2026-09-18；GitHub Actions 已配置，正式 tag/PyPI 发布尚未执行。
+状态：2026-09-19；本次不创建正式 tag，不宣称已在 PyPI 发布。
 
-## 本地开发
+新增插件在 plugins/<name> 创建独立 pyproject、plugin.json、LICENSE、README、src 和
+产品流程测试；配置、卡片和部署资料都放在该插件目录。不得将厂商依赖加入 sdk。
+名称采用小写短横线，Python 包采用下划线。SDK 包名仍为 opsmesh-plugin-sdk。
 
-需要 Python 3.11+ 和 uv：
+根目录执行 `uv sync --all-packages --all-extras --all-groups`，锁文件仅根 uv.lock 一份。
+`uv run --package opsmesh-plugin-sdk ruff check sdk/src` 做 SDK 静态检查；插件同理。
+`uv build --package opsmesh-plugin-sdk`、`uv build --package opsmesh-plugin-dingtalk`
+分别构建，两种 wheel 不互相打包源码。生产通过发布 wheel 安装，不能依赖开发环境路径。
 
-```sh
-uv sync --extra signing
-uv run ruff check .
-uv run mypy
-uv run python -m compileall -q src
-uv build
-uv run twine check --strict dist/*
-```
+发布 tag 约定 SDK 为 sdk/vX.Y.Z，插件为 plugins/<目录名>/vX.Y.Z；版本必须匹配该包
+pyproject，插件还必须匹配 plugin.json。提交必须属于 master。不能覆盖 tag 或 release。
+根 CI 按包验证并各自上传产物；发布下载相同产物，计算摘要并附 provenance。
+插件描述文件使用 SDK 签名能力，私钥只用于发布任务，PR 无写权限或密钥。
+SDK 不发布 Docker 镜像，插件部署文件留在 deploy，运营者自行构建部署。
 
-运行依赖为 HTTPX/Pydantic/packaging，Ed25519 签名使用 signing extra。
-src 布局要求先安装 SDK；不得把父仓库或 backend 加到 PYTHONPATH 来掩盖安装错误。
-构建产物包含 py.typed、Apache LICENSE、NOTICE 与历史 MIT 声明。
+平台只下载经审核的签名 JSON 和目录，不加载源码仓库。目录须指向固定无鉴权 HTTPS
+地址、无 query，填写实际字节 SHA256；GitHub 带签名 query 的下载跳转不可直接当平台源。
+保持发布描述文件与可执行 wheel 的用途分离。
 
-## SDK 发布合同
-
-1. 版本是 pyproject.toml 的单一事实来源，维护 uv.lock；tag 必须为对应的 vX.Y.Z
-   或 vX.Y.ZrcN，提交必须属于 master。已发布的版本、tag 和资产不覆盖。
-2. PR/master CI 使用 Python 3.11–3.14 做静态检查；成功后单一 build job 构建 wheel/sdist，
-   检查 metadata，并在无 backend/无 signing extra 的新环境导入 wheel。
-3. tag 复用同一门禁与 build job，发布 job 只下载其 artifact，不重新构建。
-4. 资产为 opsmesh_plugin_sdk-VERSION-py3-none-any.whl、同版本 tar.gz、SHA256SUMS。
-   GitHub provenance attestation 绑定来源仓库/工作流/commit 与资产摘要。
-5. rc 标签发布为 prerelease。流水线失败不视为发布成功；已有 release 禁止覆盖。
-   发布 job 部分失败后先核查资产与证明，再人工修复，当前不实现自动补传。
-6. 仓库尚未配置 PyPI Trusted Publisher，不运行 uv publish/twine upload，也不声称包已上架。
-   下游可安装 GitHub Release wheel，或固定完整 commit 的源码归档，不能依赖浮动 master/latest。
-7. 不为 SDK 发布 Docker 镜像；它是库。可部署插件自己的镜像遵守架构文档中的插件发布合同。
-
-```sh
-pip install ./dist/opsmesh_plugin_sdk-0.2.0-py3-none-any.whl
-pip install './dist/opsmesh_plugin_sdk-0.2.0-py3-none-any.whl[signing]'
-```
-
-从 OpsMesh 8d9fc408 提取初始 SDK；后续唯一源码 owner 是本仓库。
-平台的依赖位置由平台 pyproject.toml/uv.lock 决定，不通过手工复制同步。
-跨仓库合同变更先发布/推送 SDK 不可变版本，再更新平台固定依赖并运行现有接入流程。
-插件目录与平台拉取设计见 [架构与分发合同](architecture.md)。
-
-## 外部 remote 插件发布
-
-本仓库提供 `.github/workflows/plugin-release.yml` reusable workflow。插件仓库的 tag job
-用 `uses: jhupo/opsmesh-plugin-sdk-python/.github/workflows/plugin-release.yml@<完整提交>`，
-并通过 needs 依赖自己的业务门禁。传入 sdk-commit（完整 SHA）、manifest、publisher-key-id、
-platform-requires、sdk-requires、license；secret signing-key 为 32 字节 Ed25519 私钥的 Base64。
-调用者须赋予 contents:write、id-token:write、attestations:write；不在 PR 调用发布。
-流水线校验 tag 等于 manifest 的 vX.Y.Z、提交属于调用仓库默认分支，签名一次，发布
-release.json/SHA256SUMS 与 provenance，不构建或运行插件业务代码，不覆盖已有 release。
-
-本地同样可以运行 `opsmesh-plugin-publish plugin.json release.json`，提供上述参数的
-命令行形式（如 --publisher-key-id）以及 --repository https://github.com/OWNER/REPO、
---commit 完整 SHA；密钥只读取 OPSMESH_PLUGIN_SIGNING_KEY 环境变量。
-descriptor 将 manifest、兼容范围、许可证、源码仓库和 commit 一起签名。
-目录维护者审核后将 release.json 放在无鉴权、无 query 的 HTTPS 固定地址（例如固定 commit
-的 raw.githubusercontent.com），在 PluginCatalog 中登记准确字节 SHA256。
-GitHub release 的带签名 query 重定向不能直接作为平台下载源；使用经审核的静态镜像。
+包名、目录名和插件 manifest.key 是三个不同标识；更改目录不能偷偷变更安装身份。
+迁移仓库时先推送 SDK 完整提交，再将 OpsMesh 依赖改为该归档加 #subdirectory=sdk，
+更新 uv.lock 并验证安装。远程重命名或推送未完成前，不填写不存在的依赖地址。
