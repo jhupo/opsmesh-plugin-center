@@ -22,6 +22,7 @@ def main() -> None:
     parser.add_argument("--repository", required=True)
     parser.add_argument("--commit", required=True)
     parser.add_argument("--tag-prefix", required=True)
+    parser.add_argument("--container-image")
     args = parser.parse_args()
     manifest = PluginManifest.model_validate_json(args.manifest.read_bytes())
     tag = os.environ.get("RELEASE_TAG")
@@ -36,6 +37,7 @@ def main() -> None:
             license=args.license,
             source_repository=args.repository,
             source_commit=args.commit,
+            container_image=args.container_image,
         ),
         private_key,
     )

@@ -47,6 +47,9 @@ jobs:
           fi
       - run: uv build --package "${{ matrix.name }}" --out-dir dist
       - run: uv run twine check --strict dist/*
+      - name: Export locked plugin runtime dependencies
+        if: matrix.path != 'sdk'
+        run: uv export --locked --package "${{ matrix.name }}" --no-dev --no-emit-workspace --output-file dist/runtime-requirements.txt
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: distributions-${{ matrix.name }}-${{ github.run_id }}

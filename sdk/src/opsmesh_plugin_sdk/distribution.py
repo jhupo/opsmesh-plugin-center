@@ -13,13 +13,16 @@ from opsmesh_plugin_sdk.packages import SignedPluginPackage, verify_package
 class PluginReleaseDescriptor(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    contract_version: Literal[1] = 1
+    contract_version: Literal[2] = 2
     package: SignedPluginPackage
     platform_requires: str = Field(min_length=1, max_length=160)
     sdk_requires: str = Field(min_length=1, max_length=160)
     license: str = Field(min_length=1, max_length=120)
     source_repository: str = Field(pattern=r"^https://[^\s]+$", max_length=512)
     source_commit: str = Field(pattern=r"^[a-f0-9]{40}$")
+    container_image: str | None = Field(
+        default=None, pattern=r"^[a-z0-9./:_-]+@sha256:[a-f0-9]{64}$", max_length=260
+    )
 
     @field_validator("platform_requires", "sdk_requires")
     @classmethod

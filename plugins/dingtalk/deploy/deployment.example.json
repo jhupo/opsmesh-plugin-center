@@ -1,0 +1,14 @@
+{
+  "expected_revision": 0,
+  "template_id": "00000000-0000-0000-0000-000000000000",
+  "platform_url": "https://opsmesh.example.com/api/v1/",
+  "permissions": [
+    "messages.receive", "messages.read", "configuration.read", "storage.read", "storage.write",
+    "logs.write", "permissions.read", "approvals.decide", "attachments.write"
+  ],
+  "environment": {
+    "DINGTALK_CLIENT_ID": "replace-with-app-client-id",
+    "DINGTALK_CLIENT_SECRET": "provide-locally-never-commit-real-secret"
+  },
+  "desired_state": "running"
+}

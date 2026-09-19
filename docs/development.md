@@ -18,7 +18,11 @@ pyproject，插件还必须匹配 plugin.json。提交必须属于 master。不�
 pyproject；流水线不得对所有插件套用一组写死的值。CI 静态检查版本、范围、模板变量及按钮映射，
 这不证明钉钉设计器导入、发布或真实回调可用。
 插件描述文件使用 SDK 签名能力，私钥只用于发布任务，PR 无写权限或密钥。
-SDK 不发布 Docker 镜像，插件部署文件留在 deploy，运营者自行构建部署。
+SDK 不发布 Docker 镜像。插件必须提供 deploy/Dockerfile；CI 从工作区锁导出带哈希的
+runtime-requirements.txt。发布复用门禁 wheel 与该依赖清单，构建 amd64/arm64 镜像到 GHCR，
+生成 SBOM、来源证明和注册表 attestation；受签 descriptor v2 绑定完整镜像摘要。
+钉钉 Dockerfile 固定基础镜像摘要并以非 root 用户运行。镜像与正式发布尚未执行，不能把
+YAML 检查、Python 构建或模拟 Docker 流程当作真实镜像验收。
 
 平台只下载经审核的签名 JSON 和目录，不加载源码仓库。目录须指向固定无鉴权 HTTPS
 地址、无 query，填写实际字节 SHA256；GitHub 带签名 query 的下载跳转不可直接当平台源。
