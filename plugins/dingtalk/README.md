@@ -1,6 +1,6 @@
 # OpsMesh DingTalk plugin
 
-状态：2026-09-19，0.2.0 开发验证中，依赖 SDK 0.4；尚未用真实钉钉应用验收。
+状态：2026-09-20，0.3.0 开发验证中，依赖 SDK 0.5；尚未用真实钉钉应用验收。
 
 独立部署的渠道插件，通过官方 DingTalk Stream SDK 接收机器人消息/卡片回调，
 通过官方 OpenAPI SDK 更新卡片，通过 OpsMesh Plugin SDK 提交消息并读取任务流。
@@ -65,7 +65,7 @@ task、approval、result 分别提供任务、审批和结果模板，通过安�
 每轮操作限时 90 秒；成功投递后才推进流游标。断线使用持久游标和最终状态恢复。
 每轮聚合一批文本和工具状态再更新卡片，默认每 3 秒扫描，避免逐 token 发 API。
 失败退避至最多 300 秒，连续 12 次进入 blocked；记录保留，不能当作成功。管理员排查后，
-可用 PluginServicesClient 读取对应 `card:<digest>`，CAS 更新 blocked=false、attempts=0、
+可用 PluginClient.storage 读取对应 `card:<digest>`，CAS 更新 blocked=false、attempts=0、
 retry_at=0（确认 lease_until 已过期），恢复时仍会重新授权。完整投递的记录按 retention_hours 清理，
 默认 24 小时；私有存储受平台 512 项/2 MB 限额约束，不适合无限囤积历史消息。
 已发出的内容不能追溯收回；撤权阻止后续获取和发送新结果。
@@ -84,7 +84,7 @@ retry_at=0（确认 lease_until 已过期），恢复时仍会重新授权。完
 仓库只有一个连接器产品流程测试，平台/钉钉服务在其中模拟；不声称它是真实钉钉端到端验收。
 OpsMesh 仓库另有真实 API/Worker/PostgreSQL 的插件入站与双身份授权流程。
 根 CI 构建各包 wheel/sdist；plugins/dingtalk/vX.Y.Z 经门禁后签名，上传同一次构建的包及证明。
-发布需配置 OPSMESH_PLUGIN_SIGNING_KEY，尚未执行正式发布或发布 Docker 镜像。
+发布 Secret OPSMESH_PLUGIN_SIGNING_KEY 已配置；本版本尚未正式发布或发布 Docker 镜像。
 发布流水线用门禁 SDK/插件 wheel 与锁定 runtime-requirements.txt 构建固定基础镜像的
 amd64/arm64 镜像，发布 GHCR 来源证明；release descriptor v2 的签名覆盖镜像摘要。
 下载插件不会自动启动镜像。采用平台托管时，由管理员批准 digest-pinned RuntimeTemplate，

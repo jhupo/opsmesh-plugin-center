@@ -6,7 +6,7 @@ import time
 from collections.abc import Mapping
 from uuid import UUID
 
-from opsmesh_plugin_sdk.contracts import AutomationDelivery
+from opsmesh_plugin_sdk.messaging.contracts import AutomationDelivery
 
 
 def signed_headers(

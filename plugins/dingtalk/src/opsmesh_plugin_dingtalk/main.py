@@ -10,7 +10,7 @@ from typing import Any
 
 import dingtalk_stream
 import httpx
-from opsmesh_plugin_sdk.services import PluginServicesClient
+from opsmesh_plugin_sdk.client import PluginClient
 
 from opsmesh_plugin_dingtalk.channel import (
     DingTalkCards,
@@ -91,13 +91,13 @@ async def deliver_forever(connector: Connector) -> None:
         try:
             if time.monotonic() >= refresh_at:
                 connector.config = ChannelConfiguration.model_validate(
-                    await connector.host.configuration()
+                    await connector.host.configuration.read()
                 )
                 refresh_at = time.monotonic() + 30
             # Bounded store (512 records), stable snapshot avoids pagination shifts during deletion.
             rows = []
             for offset in range(0, 512, 100):
-                page = await connector.host.values(prefix="card:", offset=offset)
+                page = await connector.host.storage.values(prefix="card:", offset=offset)
                 rows.extend(page)
                 if len(page) < 100:
                     break
@@ -128,8 +128,8 @@ async def run(settings: Settings, heartbeat: Connection) -> None:
         headers={"Authorization": "Bearer " + settings.platform_token.get_secret_value()},
         timeout=httpx.Timeout(65, connect=5),
     ) as http:
-        host = PluginServicesClient(http, settings.workspace_id, settings.install_id)
-        config = ChannelConfiguration.model_validate(await host.configuration())
+        host = PluginClient(http, settings.workspace_id, settings.install_id)
+        config = ChannelConfiguration.model_validate(await host.configuration.read())
         connector = Connector(
             host,
             DingTalkCards(settings.client_id, settings.client_secret.get_secret_value()),

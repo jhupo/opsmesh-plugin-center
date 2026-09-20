@@ -38,6 +38,13 @@ jobs:
       - run: uv run ruff check --config "${{ matrix.path }}/pyproject.toml" "${{ matrix.path }}"
       - run: uv run mypy --config-file "${{ matrix.path }}/pyproject.toml" "${{ matrix.path }}/src"
       - run: uv run python -m compileall -q "${{ matrix.path }}/src"
+      - name: Plugin assets
+        env:
+          PACKAGE_PATH: ${{ matrix.path }}
+        run: |
+          if [ -f "$PACKAGE_PATH/scripts/check_assets.py" ]; then
+            uv run python "$PACKAGE_PATH/scripts/check_assets.py"
+          fi
       - name: Product flow
         env:
           PACKAGE_PATH: ${{ matrix.path }}

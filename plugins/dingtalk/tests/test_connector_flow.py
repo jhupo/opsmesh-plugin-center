@@ -10,10 +10,10 @@ from uuid import NAMESPACE_URL, uuid4, uuid5
 
 import httpx
 import pytest
-from opsmesh_plugin_sdk.cards import CardTemplate
-from opsmesh_plugin_sdk.contracts import AutomationStreamEvent
-from opsmesh_plugin_sdk.services import PluginServicesClient
+from opsmesh_plugin_sdk.client import PluginClient
+from opsmesh_plugin_sdk.messaging.contracts import AutomationStreamEvent
 
+from opsmesh_plugin_dingtalk.cards import CardTemplate
 from opsmesh_plugin_dingtalk.channel import parse_callback, parse_message
 from opsmesh_plugin_dingtalk.configuration import ChannelConfiguration
 from opsmesh_plugin_dingtalk.connector import Connector
@@ -205,7 +205,7 @@ def test_message_stream_card_callback_and_recovery(group_reply, media):
         async with httpx.AsyncClient(
             transport=httpx.MockTransport(transport), base_url="https://platform.example/api/v1/"
         ) as http:
-            host = PluginServicesClient(http, workspace_id, install_id)
+            host = PluginClient(http, workspace_id, install_id)
             connector = Connector(host, Channel(), config)
             raw = {
                 "senderCorpId": "corp",
@@ -238,22 +238,22 @@ def test_message_stream_card_callback_and_recovery(group_reply, media):
                         parse_message({**raw, "senderStaffId": "employee2"}, config)
                     )
             key = connector.key(incoming.message)
-            await connector.process(await host.read(key))
-            failed = await host.read(key)
+            await connector.process(await host.storage.read(key))
+            failed = await host.storage.read(key)
             assert failed.value["cursor"] == "0-0"
             assert failed.value["attempts"] == 1
             # The process can restart; persisted record retains the original event and card ID.
-            from opsmesh_plugin_sdk.services import StoreWrite
+            from opsmesh_plugin_sdk.services.storage import StoreWrite
 
-            await host.write(
+            await host.storage.write(
                 key,
                 StoreWrite(
                     expected_revision=failed.revision, value={**failed.value, "retry_at": 0}
                 ),
             )
             connector = Connector(host, Channel(), config)
-            await connector.process(await host.read(key))
-            current = await host.read(key)
+            await connector.process(await host.storage.read(key))
+            current = await host.storage.read(key)
             assert current.value["cursor"] == "1-0"
             assert len([item for item in output if len(item) == 3]) == 1
             track_id = output[0][0]
@@ -272,7 +272,7 @@ def test_message_stream_card_callback_and_recovery(group_reply, media):
             with pytest.raises(ValueError):
                 await connector.callback(track, "corp:employee2", action, "callback-2", stamp)
             phase = "approval"
-            await connector.process(await host.read(key))
+            await connector.process(await host.storage.read(key))
             with pytest.raises(ValueError):
                 await connector.callback(
                     track, sender, "approve", "approval-1", stamp, approval_id=uuid4()
@@ -288,36 +288,36 @@ def test_message_stream_card_callback_and_recovery(group_reply, media):
             if group_reply:
                 before = len(output)
                 member = False
-                await connector.process(await host.read(key))
+                await connector.process(await host.storage.read(key))
                 assert len(output) == before
                 member = True
                 readable = False
-                row = await host.read(key)
-                await host.write(
+                row = await host.storage.read(key)
+                await host.storage.write(
                     key,
                     StoreWrite(expected_revision=row.revision, value={**row.value, "retry_at": 0}),
                 )
-                await connector.process(await host.read(key))
+                await connector.process(await host.storage.read(key))
                 assert len(output) == before
                 readable = True
-                row = await host.read(key)
-                await host.write(
+                row = await host.storage.read(key)
+                await host.storage.write(
                     key,
                     StoreWrite(expected_revision=row.revision, value={**row.value, "retry_at": 0}),
                 )
             phase = "completed"
             failure = True
-            await connector.process(await host.read(key))
-            pending = await host.read(key)
+            await connector.process(await host.storage.read(key))
+            pending = await host.storage.read(key)
             assert not pending.value["complete"]
-            await host.write(
+            await host.storage.write(
                 key,
                 StoreWrite(
                     expected_revision=pending.revision, value={**pending.value, "retry_at": 0}
                 ),
             )
-            await connector.process(await host.read(key))
-            assert (await host.read(key)).value["complete"]
+            await connector.process(await host.storage.read(key))
+            assert (await host.storage.read(key)).value["complete"]
             assert "done" in output[-1][-1]["markdown"]
             revoked = True
             with pytest.raises(httpx.HTTPStatusError):

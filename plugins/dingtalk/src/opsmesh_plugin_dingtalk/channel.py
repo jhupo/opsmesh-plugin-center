@@ -24,7 +24,7 @@ from alibabacloud_dingtalk.robot_1_0 import models as robot
 from alibabacloud_dingtalk.robot_1_0.client import Client as RobotClient
 from alibabacloud_tea_openapi.models import Config
 from alibabacloud_tea_util.models import RuntimeOptions
-from opsmesh_plugin_sdk.contracts import AttachmentKind, IncomingMessage
+from opsmesh_plugin_sdk.messaging.contracts import AttachmentKind, IncomingMessage
 
 from opsmesh_plugin_dingtalk.configuration import ChannelConfiguration
 
@@ -70,11 +70,7 @@ def parse_message(data: dict[str, Any], config: ChannelConfiguration) -> Channel
     if incoming.message_type == "picture":
         code = getattr(incoming.image_content, "download_code", None)
         if code:
-            attachments.append(
-                RawAttachment(
-                    str(code), "image", "image.jpg", "image/jpeg"
-                )
-            )
+            attachments.append(RawAttachment(str(code), "image", "image.jpg", "image/jpeg"))
     elif incoming.message_type == "audio":
         code = raw_content.get("downloadCode")
         recognition = str(raw_content.get("recognition") or "").strip()
@@ -94,9 +90,7 @@ def parse_message(data: dict[str, Any], config: ChannelConfiguration) -> Channel
         if code:
             filename = str(raw_content.get("fileName") or "attachment.bin")[:260]
             attachments.append(
-                RawAttachment(
-                    str(code), "file", filename, "application/octet-stream"
-                )
+                RawAttachment(str(code), "file", filename, "application/octet-stream")
             )
     elif incoming.message_type == "richText":
         for item in getattr(incoming.rich_text_content, "rich_text_list", []) or []:
@@ -262,7 +256,9 @@ class DingTalkCards:
             parsed = urlsplit(url or "")
             host = parsed.hostname or ""
             if (
-                parsed.scheme != "https" or parsed.username or parsed.password
+                parsed.scheme != "https"
+                or parsed.username
+                or parsed.password
                 or parsed.port not in {None, 443}
                 or not any(
                     host == domain or host.endswith("." + domain)
@@ -272,7 +268,8 @@ class DingTalkCards:
                 raise ValueError("DingTalk returned an invalid attachment URL")
         async with (
             httpx.AsyncClient(
-                timeout=httpx.Timeout(20.0, connect=5.0), follow_redirects=False,
+                timeout=httpx.Timeout(20.0, connect=5.0),
+                follow_redirects=False,
             ) as http,
             http.stream("GET", url) as result,
         ):

@@ -6,9 +6,9 @@ import hashlib
 import os
 from pathlib import Path
 
-from opsmesh_plugin_sdk.contracts import PluginManifest
-from opsmesh_plugin_sdk.distribution import PluginReleaseDescriptor, sign_release
-from opsmesh_plugin_sdk.packages import sign_package
+from opsmesh_plugin_sdk.packaging.distribution import PluginReleaseDescriptor, sign_release
+from opsmesh_plugin_sdk.packaging.manifest import PluginManifest
+from opsmesh_plugin_sdk.packaging.packages import sign_package
 
 
 def main() -> None:

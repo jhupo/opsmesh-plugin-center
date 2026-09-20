@@ -9,19 +9,18 @@ from typing import Protocol
 from uuid import UUID, uuid4
 
 import httpx
-from opsmesh_plugin_sdk.cards import CardTemplate
-from opsmesh_plugin_sdk.contracts import IncomingMessage
-from opsmesh_plugin_sdk.services import (
+from opsmesh_plugin_sdk.client import PluginClient
+from opsmesh_plugin_sdk.messaging.contracts import (
     ApprovalDecision,
     AttachmentUpload,
-    PermissionQuery,
-    PluginLog,
-    PluginServicesClient,
-    StoredValue,
-    StoreWrite,
+    IncomingMessage,
 )
+from opsmesh_plugin_sdk.services.identity import PermissionQuery
+from opsmesh_plugin_sdk.services.observability import PluginLog
+from opsmesh_plugin_sdk.services.storage import StoredValue, StoreWrite
 from pydantic import BaseModel, ConfigDict, Field
 
+from opsmesh_plugin_dingtalk.cards import CardTemplate
 from opsmesh_plugin_dingtalk.channel import ChannelMessage, RawAttachment
 from opsmesh_plugin_dingtalk.configuration import ChannelConfiguration
 
@@ -69,7 +68,7 @@ class Delivery(BaseModel):
 
 class Connector:
     def __init__(
-        self, host: PluginServicesClient, channel: CardChannel, config: ChannelConfiguration
+        self, host: PluginClient, channel: CardChannel, config: ChannelConfiguration
     ) -> None:
         self.host, self.channel, self.config = host, channel, config
         self.owner = uuid4().hex
@@ -97,7 +96,7 @@ class Connector:
             for slot, attachment in enumerate(incoming.attachments):
                 content, content_type = await self.channel.download(attachment)
                 uploaded.append(
-                    await self.host.upload_attachment(
+                    await self.host.messages.upload_attachment(
                         self.config.automation_id,
                         AttachmentUpload(
                             sender_id=message.sender_id,
@@ -120,7 +119,7 @@ class Connector:
             )
         accepted = await self.host.automation(self.config.automation_id).submit(message)
         key = self.key(message)
-        current = await self.host.read(key)
+        current = await self.host.storage.read(key)
         if current is None:
             delivery = Delivery(
                 # The platform owns the accepted body. The bounded outbox only needs routing
@@ -141,13 +140,13 @@ class Connector:
                 template=self.config.card.model_dump(mode="json"),
             )
             try:
-                await self.host.write(
+                await self.host.storage.write(
                     key, StoreWrite(expected_revision=0, value=delivery.model_dump(mode="json"))
                 )
             except httpx.HTTPStatusError as exc:
                 if exc.response.status_code != 409:
                     raise
-                current = await self.host.read(key)
+                current = await self.host.storage.read(key)
                 if (
                     current is None
                     or Delivery.model_validate(current.value).event_id != accepted.id
@@ -167,7 +166,7 @@ class Connector:
     ) -> UUID:
         if not track_id.startswith("opsmesh_") or len(track_id) != 72:
             raise ValueError("Unknown card")
-        row = await self.host.read("card:" + track_id[8:])
+        row = await self.host.storage.read("card:" + track_id[8:])
         if row is None:
             raise ValueError("Card expired")
         delivery = Delivery.model_validate(row.value)
@@ -188,7 +187,7 @@ class Connector:
         if action in {"approve", "reject"}:
             if approval_id is None or approval_id not in delivery.presented_approvals:
                 raise ValueError("Approval was not presented on this card")
-            receipt = await self.host.decide_approval(
+            receipt = await self.host.messages.decide_approval(
                 delivery.automation_id,
                 delivery.event_id,
                 approval_id,
@@ -215,7 +214,7 @@ class Connector:
         delivery = Delivery.model_validate(row.value)
         now = time.time()
         if delivery.complete and delivery.expires_at <= now:
-            await self.host.delete(row.key, expected_revision=row.revision)
+            await self.host.storage.delete(row.key, expected_revision=row.revision)
             return
         if (
             delivery.complete
@@ -226,7 +225,7 @@ class Connector:
             return
         delivery.lease_owner, delivery.lease_until = self.owner, now + 120
         try:
-            row = await self.host.write(
+            row = await self.host.storage.write(
                 row.key,
                 StoreWrite(expected_revision=row.revision, value=delivery.model_dump(mode="json")),
             )
@@ -256,11 +255,11 @@ class Connector:
         delivery.lease_owner, delivery.lease_until = "", 0
         if delivery.attempts >= 12:
             delivery.blocked = True
-        await self.host.write(
+        await self.host.storage.write(
             row.key,
             StoreWrite(expected_revision=row.revision, value=delivery.model_dump(mode="json")),
         )
-        await self.host.log(
+        await self.host.observability.log(
             PluginLog(
                 level="warning",
                 code="card.delivery_failed",
@@ -277,7 +276,7 @@ class Connector:
             if initial.event.status in {"failed", "rejected", "skipped", "completed"}:
                 delivery.blocked = True
             delivery.lease_owner, delivery.lease_until = "", 0
-            await self.host.write(
+            await self.host.storage.write(
                 row.key,
                 StoreWrite(expected_revision=row.revision, value=delivery.model_dump(mode="json")),
             )
@@ -347,7 +346,7 @@ class Connector:
         delivery.cursor = cursor
         delivery.attempts = 0
         delivery.retry_at, delivery.lease_until, delivery.lease_owner = 0, 0, ""
-        await self.host.write(
+        await self.host.storage.write(
             row.key,
             StoreWrite(expected_revision=row.revision, value=delivery.model_dump(mode="json")),
         )
@@ -365,7 +364,7 @@ class Connector:
             raise ValueError("Group audience changed or task is unavailable")
         await self.channel.require_group_members(delivery.group_id, delivery.recipients)
         for staff in delivery.recipients:
-            permission = await self.host.permissions(
+            permission = await self.host.identity.permissions(
                 PermissionQuery(
                     automation_id=delivery.automation_id,
                     sender_id=f"{self.config.corp_id}:{staff}",
