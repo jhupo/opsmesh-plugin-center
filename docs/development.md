@@ -1,6 +1,7 @@
 # 贡献与发布
 
-状态：2026-09-19；本次不创建正式 tag，不宣称已在 PyPI 发布。
+状态：2026-09-20；用户已授权发布最新包。SDK 0.4.0 已通过 GitHub Release 发布，
+不宣称已在 PyPI 发布；插件镜像和签名发布仍待完成。
 
 新增插件在 plugins/<name> 创建独立 pyproject、plugin.json、release.toml、LICENSE、README、src 和
 产品流程测试；配置、卡片和部署资料都放在该插件目录。不得将厂商依赖加入 sdk。
@@ -29,5 +30,6 @@ YAML 检查、Python 构建或模拟 Docker 流程当作真实镜像验收。
 保持发布描述文件与可执行 wheel 的用途分离。
 
 包名、目录名和插件 manifest.key 是三个不同标识；更改目录不能偷偷变更安装身份。
-迁移仓库时先推送 SDK 完整提交，再将 OpsMesh 依赖改为该归档加 #subdirectory=sdk，
-更新 uv.lock 并验证安装。远程重命名或推送未完成前，不填写不存在的依赖地址。
+平台使用已发布 SDK wheel 的固定版本 URL 与 SHA-256，并同步更新 uv.lock、验证安装。
+当前远程沿用 `jhupo/opsmesh-plugin-sdk-python`，源码采用插件中心目录结构；
+不把开发环境的可编辑安装或源码副本作为生产依赖。
