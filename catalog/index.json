@@ -1,0 +1,13 @@
+{
+  "contract_version": 1,
+  "entries": [
+    {
+      "plugin_key": "opsmesh.dingtalk",
+      "version": "0.3.0",
+      "publisher_key_id": "opsmesh-plugins",
+      "release_url": "https://raw.githubusercontent.com/jhupo/opsmesh-plugin-center/master/catalog/releases/dingtalk/0.3.0.json",
+      "sha256": "3a38bd382d458929b0802954f5af9fb54e6de8613fb8b717c943f370cee2b672",
+      "withdrawn": false
+    }
+  ]
+}

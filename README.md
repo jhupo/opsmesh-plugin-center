@@ -14,6 +14,7 @@ plugins/                     # 一个直接子目录一个插件
     deploy/                  # 部署文件与无密钥配置
     tests/                   # 产品流程
 docs/                        # 架构、贡献、发布规范
+catalog/                     # 只读插件目录和已签名版本元数据，不自动安装
 .github/workflows/           # 统一门禁、按包发布
 ```
 
@@ -31,5 +32,5 @@ SDK 按 services/messaging/packaging 分类，包含受控身份、资源发现�
 卡片实现和模板校验全部在钉钉插件。详见 [平台服务](docs/services.md)。
 发布流程包含独立 Python 包、固定摘要镜像及受签 descriptor v2。
 2026-09-20：远程仓库已更名为 `jhupo/opsmesh-plugin-center`。
-SDK 0.4.0、0.4.1 已由 GitHub Actions 发布；新版本需通过 PR 合入后发布。
-发布签名 Secret 已配置；镜像发布和真实渠道验收仍待完成。
+SDK 0.5.0 和钉钉插件 0.3.0 已由 GitHub Actions 发布，包含签名描述文件和双架构镜像。
+默认只同步[插件信息目录](docs/catalog.md)，安装和运行需要单独批准。真实渠道验收仍待完成。
