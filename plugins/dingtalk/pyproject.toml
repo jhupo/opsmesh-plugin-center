@@ -14,7 +14,7 @@ dependencies = [
   "alibabacloud-tea-util>=0.3,<1",
 ]
 [project.scripts]
-opsmesh-dingtalk = "opsmesh_dingtalk.main:main"
+opsmesh-dingtalk = "opsmesh_plugin_dingtalk.main:main"
 [build-system]
 requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
@@ -36,7 +36,7 @@ target-version = "py311"
 select = ["E", "F", "I", "UP", "B", "SIM"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["opsmesh_dingtalk"]
+known-first-party = ["opsmesh_plugin_dingtalk"]
 known-third-party = ["opsmesh_plugin_sdk"]
 [tool.mypy]
 python_version = "3.11"

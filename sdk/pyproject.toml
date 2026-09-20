@@ -1,6 +1,6 @@
 [project]
 name = "opsmesh-plugin-sdk"
-version = "0.4.0"
+version = "0.4.1"
 description = "Python SDK for OpsMesh remote plugins and message connectors"
 readme = "README.md"
 license = "Apache-2.0"
@@ -15,9 +15,9 @@ opsmesh-plugin-publish = "opsmesh_plugin_sdk.publish:main"
 signing = ["cryptography>=48"]
 
 [project.urls]
-Homepage = "https://github.com/jhupo/opsmesh-plugin-sdk-python"
-Repository = "https://github.com/jhupo/opsmesh-plugin-sdk-python"
-Issues = "https://github.com/jhupo/opsmesh-plugin-sdk-python/issues"
+Homepage = "https://github.com/jhupo/opsmesh-plugin-center"
+Repository = "https://github.com/jhupo/opsmesh-plugin-center"
+Issues = "https://github.com/jhupo/opsmesh-plugin-center/issues"
 
 [build-system]
 requires = ["setuptools>=77"]

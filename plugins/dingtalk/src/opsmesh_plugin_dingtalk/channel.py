@@ -26,7 +26,7 @@ from alibabacloud_tea_openapi.models import Config
 from alibabacloud_tea_util.models import RuntimeOptions
 from opsmesh_plugin_sdk.contracts import AttachmentKind, IncomingMessage
 
-from opsmesh_dingtalk.configuration import ChannelConfiguration
+from opsmesh_plugin_dingtalk.configuration import ChannelConfiguration
 
 
 @dataclass(frozen=True)

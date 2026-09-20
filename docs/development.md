@@ -31,5 +31,5 @@ YAML 检查、Python 构建或模拟 Docker 流程当作真实镜像验收。
 
 包名、目录名和插件 manifest.key 是三个不同标识；更改目录不能偷偷变更安装身份。
 平台使用已发布 SDK wheel 的固定版本 URL 与 SHA-256，并同步更新 uv.lock、验证安装。
-当前远程沿用 `jhupo/opsmesh-plugin-sdk-python`，源码采用插件中心目录结构；
+当前远程为 `jhupo/opsmesh-plugin-center`，源码采用插件中心目录结构；
 不把开发环境的可编辑安装或源码副本作为生产依赖。
