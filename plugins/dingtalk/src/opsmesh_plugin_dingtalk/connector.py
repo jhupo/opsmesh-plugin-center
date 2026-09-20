@@ -22,8 +22,8 @@ from opsmesh_plugin_sdk.services import (
 )
 from pydantic import BaseModel, ConfigDict, Field
 
-from opsmesh_dingtalk.channel import ChannelMessage, RawAttachment
-from opsmesh_dingtalk.configuration import ChannelConfiguration
+from opsmesh_plugin_dingtalk.channel import ChannelMessage, RawAttachment
+from opsmesh_plugin_dingtalk.configuration import ChannelConfiguration
 
 
 class CardChannel(Protocol):

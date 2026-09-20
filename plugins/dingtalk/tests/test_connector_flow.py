@@ -14,9 +14,9 @@ from opsmesh_plugin_sdk.cards import CardTemplate
 from opsmesh_plugin_sdk.contracts import AutomationStreamEvent
 from opsmesh_plugin_sdk.services import PluginServicesClient
 
-from opsmesh_dingtalk.channel import parse_callback, parse_message
-from opsmesh_dingtalk.configuration import ChannelConfiguration
-from opsmesh_dingtalk.connector import Connector
+from opsmesh_plugin_dingtalk.channel import parse_callback, parse_message
+from opsmesh_plugin_dingtalk.configuration import ChannelConfiguration
+from opsmesh_plugin_dingtalk.connector import Connector
 
 
 @pytest.mark.parametrize("group_reply", [False, True])

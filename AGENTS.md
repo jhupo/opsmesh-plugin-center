@@ -21,6 +21,9 @@
 
 - SDK 唯一源码在 sdk/src/opsmesh_plugin_sdk；一个插件一个 plugins/<name> 目录。
 - 各包独立版本、依赖、许可证、入口和分发产物。根 uv workspace 只服务开发。
+- 插件发布名采用 opsmesh-plugin-<name>，Python 导入包采用 opsmesh_plugin_<name>；
+  SDK 保持 opsmesh-plugin-sdk / opsmesh_plugin_sdk。改名直接更新全部调用方，不保留旧名。
+- 修改通过功能分支和面向 master 的 PR 提交；遵守保护规则，发布 tag 指向已合入提交。
 - SDK 不导入插件，插件不互相导入。不复制 SDK 源码、不修改 sys.path。
 - 插件的 manifest、模板、部署资料、产品流程在自己的目录，Actions 在根 .github。
 - SDK 拥有厂商无关合同与 HTTP 客户端；渠道通信复用官方 SDK。

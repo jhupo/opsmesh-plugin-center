@@ -12,11 +12,16 @@ import dingtalk_stream
 import httpx
 from opsmesh_plugin_sdk.services import PluginServicesClient
 
-from opsmesh_dingtalk.channel import DingTalkCards, SDKLogFilter, parse_callback, parse_message
-from opsmesh_dingtalk.configuration import ChannelConfiguration, Settings
-from opsmesh_dingtalk.connector import Connector
+from opsmesh_plugin_dingtalk.channel import (
+    DingTalkCards,
+    SDKLogFilter,
+    parse_callback,
+    parse_message,
+)
+from opsmesh_plugin_dingtalk.configuration import ChannelConfiguration, Settings
+from opsmesh_plugin_dingtalk.connector import Connector
 
-logger = logging.getLogger("opsmesh_dingtalk")
+logger = logging.getLogger("opsmesh_plugin_dingtalk")
 
 
 class MessageHandler(dingtalk_stream.CallbackHandler):  # type: ignore[misc]

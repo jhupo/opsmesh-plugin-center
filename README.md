@@ -9,7 +9,7 @@ plugins/                     # 一个直接子目录一个插件
   dingtalk/
     plugin.json              # 能力、权限与版本声明
     pyproject.toml           # 插件独立依赖与命令入口
-    src/opsmesh_dingtalk/     # 官方渠道适配与持久投递
+    src/opsmesh_plugin_dingtalk/     # 官方渠道适配与持久投递
     card-templates/          # task/approval/result 各自 v1 UI、映射和预览
     deploy/                  # 部署文件与无密钥配置
     tests/                   # 产品流程
@@ -26,8 +26,9 @@ docs/                        # 架构、贡献、发布规范
 [架构](docs/architecture.md)、[开发与发布](docs/development.md)。
 
 各包独立保留 Apache-2.0 许可证及历史声明。钉钉真实应用联调尚未验收。
-当前开发版本为 SDK 0.4.0、钉钉插件 0.2.0；支持媒体输入、群指定接收人、卡片内审批。
-发布流程包含独立 Python 包、固定摘要镜像及受签 descriptor v2；未执行正式发布。
-2026-09-20：插件中心已推送至 `jhupo/opsmesh-plugin-sdk-python`，保留现有远程名称。
-SDK 0.4.0 已由 GitHub Actions 发布，OpsMesh 已固定发布 wheel 与 SHA-256；
+当前版本为 SDK 0.4.1、钉钉插件 0.2.0；支持媒体输入、群指定接收人、卡片内审批。
+发布流程包含独立 Python 包、固定摘要镜像及受签 descriptor v2。
+2026-09-20：远程仓库已更名为 `jhupo/opsmesh-plugin-center`。
+SDK 0.4.0 已由 GitHub Actions 发布；0.4.1 更新仓库链接，正在准备发布。
+OpsMesh 已固定发布 wheel 与 SHA-256；
 钉钉 0.2.0 的签名密钥配置、镜像发布和真实渠道验收仍待完成。
