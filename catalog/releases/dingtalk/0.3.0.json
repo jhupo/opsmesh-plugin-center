@@ -1,0 +1,43 @@
+{
+  "release": {
+    "contract_version": 2,
+    "package": {
+      "manifest": {
+        "contract_version": 1,
+        "key": "opsmesh.dingtalk",
+        "version": "0.3.0",
+        "name": "OpsMesh DingTalk",
+        "execution": "remote",
+        "capabilities": [
+          {
+            "key": "receive",
+            "kind": "message_trigger",
+            "title": "DingTalk message ingress and private card output",
+            "description": "",
+            "configuration_schema": {},
+            "required_permissions": [
+              "messages.receive",
+              "messages.read",
+              "approvals.decide",
+              "attachments.write",
+              "configuration.read",
+              "storage.read",
+              "storage.write",
+              "permissions.read",
+              "logs.write"
+            ]
+          }
+        ]
+      },
+      "publisher_key_id": "opsmesh-plugins",
+      "signature": "eoi0/cc1KiyvwFPY0BMi/Ddm/IpYNQIRk1iUqOEfCAqhtKxxv0V/5eS8UNn1PAUWzaASqbRsIRhmrpLDJc/WBg=="
+    },
+    "platform_requires": ">=0.1.0rc10",
+    "sdk_requires": ">=0.5,<0.6",
+    "license": "Apache-2.0",
+    "source_repository": "https://github.com/jhupo/opsmesh-plugin-center",
+    "source_commit": "57defc46300e0d6c10c9bb3349fa69e1cb8326d5",
+    "container_image": "ghcr.io/jhupo/opsmesh-plugin-center-dingtalk@sha256:bbdfebbe343b238471172e4a42133a84c80b85f268fb5b4c6a51bef7565afa77"
+  },
+  "signature": "5y5g+xveIN/B+n7ReNFhhgUHmOrgIMGxNFeeiP/YahFScRMBEik1gZZx0UM4IrusF3kMcqz7QcGYUSgnAsS/AQ=="
+}
