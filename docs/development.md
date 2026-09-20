@@ -1,7 +1,9 @@
 # 贡献与发布
 
-状态：2026-09-20；用户已授权发布最新包。SDK 0.4.0 已通过 GitHub Release 发布，
+状态：2026-09-20；用户已授权发布最新包。SDK 0.4.0、0.4.1 已通过 GitHub Release 发布，
 不宣称已在 PyPI 发布；插件镜像和签名发布仍待完成。
+当前源码为 SDK 0.5.0、钉钉插件 0.3.0，须先走 PR。发布签名 Secret 已配置，
+验证公钥见 [publisher-key](publisher-key.md)，不自动授予任何工作区信任。
 
 新增插件在 plugins/<name> 创建独立 pyproject、plugin.json、release.toml、LICENSE、README、src 和
 产品流程测试；配置、卡片和部署资料都放在该插件目录。不得将厂商依赖加入 sdk。

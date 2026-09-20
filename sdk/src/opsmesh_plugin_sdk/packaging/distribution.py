@@ -7,7 +7,7 @@ from typing import Literal
 from packaging.specifiers import SpecifierSet
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from opsmesh_plugin_sdk.packages import SignedPluginPackage, verify_package
+from opsmesh_plugin_sdk.packaging.packages import SignedPluginPackage, verify_package
 
 
 class PluginReleaseDescriptor(BaseModel):

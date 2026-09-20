@@ -1,6 +1,6 @@
 # 插件中心、SDK 与平台边界
 
-状态：2026-09-19。采用 sdk/ 与 plugins/<name>/ 单仓库结构。
+状态：2026-09-20。采用 sdk/ 与 plugins/<name>/ 单仓库结构，SDK 0.5 按服务、消息、打包分类。
 
 SDK 维护公共合同、签名和客户端。每个插件独立声明渠道依赖、版本及部署方式。
 新贡献通过 plugins/<name> 合入；无需复制 SDK 或为每个插件建立 Git 仓库。
@@ -9,7 +9,8 @@ SDK 不导入插件；插件不互相导入，只调用 SDK 公共接口。根 u
 
 插件目录包含 plugin.json、pyproject.toml、README、LICENSE、src 和 tests。
 有卡片时增加 card-templates/<用途>/<版本>，有部署需求时增加 deploy，不创建空目录。
-card.json 是厂商 UI，mapping.json 是 SDK CardTemplate，preview.json 是无敏感样例。
+card.json 是厂商 UI，mapping.json 是插件拥有的变量映射，preview.json 是无敏感样例。
+卡片映射、字段限制及模板验证均在插件内部，SDK 和平台不发布渠道 UI 合同。
 模板随插件分发包交付。安装配置仍需引用实际发布的 template_id。
 
 平台拥有受控 HTTPS 目录→不可变描述文件→验签→权限/配置预览→管理员绑定→安装。

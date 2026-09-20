@@ -5,7 +5,7 @@ import json
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from opsmesh_plugin_sdk.contracts import PluginManifest
+from opsmesh_plugin_sdk.packaging.manifest import PluginManifest
 
 
 class SignedPluginPackage(BaseModel):

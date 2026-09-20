@@ -4,9 +4,10 @@ from typing import Literal
 from urllib.parse import urlsplit
 from uuid import UUID
 
-from opsmesh_plugin_sdk.cards import CardTemplate
-from opsmesh_plugin_sdk.contracts import AttachmentKind
+from opsmesh_plugin_sdk.messaging.contracts import AttachmentKind
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, model_validator
+
+from opsmesh_plugin_dingtalk.cards import CardTemplate
 
 
 class Settings(BaseModel):

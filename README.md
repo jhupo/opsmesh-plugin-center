@@ -1,6 +1,6 @@
 # OpsMesh Plugin Center
 
-状态：2026-09-19。SDK 与插件统一维护的贡献仓库；平台负责安装、授权与执行策略。
+状态：2026-09-20。SDK 与插件统一维护的贡献仓库；平台负责安装、授权与执行策略。
 
 ```text
 sdk/                         # 独立发布的 Python SDK
@@ -26,9 +26,10 @@ docs/                        # 架构、贡献、发布规范
 [架构](docs/architecture.md)、[开发与发布](docs/development.md)。
 
 各包独立保留 Apache-2.0 许可证及历史声明。钉钉真实应用联调尚未验收。
-当前版本为 SDK 0.4.1、钉钉插件 0.2.0；支持媒体输入、群指定接收人、卡片内审批。
+当前源码版本为 SDK 0.5.0、钉钉插件 0.3.0；支持媒体输入、群指定接收人、卡片内审批。
+SDK 按 services/messaging/packaging 分类，包含受控身份、资源发现、知识与记忆、私有存储和日志。
+卡片实现和模板校验全部在钉钉插件。详见 [平台服务](docs/services.md)。
 发布流程包含独立 Python 包、固定摘要镜像及受签 descriptor v2。
 2026-09-20：远程仓库已更名为 `jhupo/opsmesh-plugin-center`。
-SDK 0.4.0 已由 GitHub Actions 发布；0.4.1 更新仓库链接，正在准备发布。
-OpsMesh 已固定发布 wheel 与 SHA-256；
-钉钉 0.2.0 的签名密钥配置、镜像发布和真实渠道验收仍待完成。
+SDK 0.4.0、0.4.1 已由 GitHub Actions 发布；新版本需通过 PR 合入后发布。
+发布签名 Secret 已配置；镜像发布和真实渠道验收仍待完成。

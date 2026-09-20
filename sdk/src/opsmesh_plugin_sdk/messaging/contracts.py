@@ -56,35 +56,6 @@ class IncomingMessage(BaseModel):
         return self
 
 
-class CapabilityDeclaration(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    key: str = Field(pattern=r"^[a-z][a-z0-9_.-]{0,119}$")
-    kind: Literal["mcp_server", "skill", "message_trigger", "reply_channel"]
-    title: str = Field(min_length=1, max_length=160)
-    description: str = Field(default="", max_length=2000)
-    configuration_schema: dict[str, object] = Field(default_factory=dict)
-    required_permissions: list[str] = Field(default_factory=list, max_length=32)
-
-
-class PluginManifest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    contract_version: Literal[1] = 1
-    key: str = Field(pattern=r"^[a-z][a-z0-9_.-]{0,119}$")
-    version: str = Field(pattern=r"^\d+\.\d+\.\d+$")
-    name: str = Field(min_length=1, max_length=160)
-    execution: Literal["remote"] = "remote"
-    capabilities: list[CapabilityDeclaration] = Field(min_length=1, max_length=128)
-
-    @model_validator(mode="after")
-    def unique_capabilities(self) -> PluginManifest:
-        keys = [item.key for item in self.capabilities]
-        if len(keys) != len(set(keys)):
-            raise ValueError("Plugin capability keys must be unique")
-        return self
-
-
 class AcceptedEvent(BaseModel):
     model_config = ConfigDict(extra="forbid", from_attributes=True)
 
@@ -170,3 +141,27 @@ class AutomationStreamEvent(BaseModel):
     attempt_id: UUID | None = None
     sequence: int | None = None
     data: dict[str, object] = Field(default_factory=dict)
+
+
+class ApprovalDecision(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    sender_id: str = Field(min_length=1, max_length=160)
+    decision: Literal["approve", "reject"]
+    reason: str | None = Field(default=None, max_length=2000)
+
+
+class ApprovalReceipt(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    id: UUID
+    status: Literal["approved", "rejected"]
+
+
+class AttachmentUpload(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    sender_id: str = Field(min_length=1, max_length=160)
+    external_event_id: str = Field(min_length=1, max_length=160)
+    slot: int = Field(ge=0, le=4)
+    kind: AttachmentKind
+    filename: str = Field(min_length=1, max_length=260)
+    content_type: str = Field(min_length=1, max_length=120)
+    transcript: str = Field(default="", max_length=16000, repr=False)
